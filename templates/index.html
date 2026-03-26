@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>Neural Architecture Reactor</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600&display=swap" rel="stylesheet">
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+body {
+  margin:0;
+  font-family: 'Nunito', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+  background: radial-gradient(circle at 20% 30%, #0f0c29, #302b63, #24243e);
+  color: #e0e0ff;
+  overflow-x:hidden;
+}
+
+.navbar {
+  padding:20px;
+  font-size:20px;
+  background: rgba(0,0,0,0.4);
+  backdrop-filter: blur(10px);
+  border-bottom:1px solid rgba(255,255,255,0.1);
+}
+
+.container {
+  padding:30px;
+}
+
+.glass {
+  background: rgba(255,255,255,0.05);
+  border:1px solid rgba(255,255,255,0.1);
+  border-radius:15px;
+  backdrop-filter: blur(20px);
+  padding:20px;
+  margin-bottom:25px;
+  box-shadow:0 0 30px rgba(100,100,255,0.2);
+}
+
+input, select {
+  background: rgba(0,0,0,0.5);
+  color:white;
+  border:1px solid rgba(255,255,255,0.2);
+  padding:8px;
+  border-radius:6px;
+}
+
+button {
+  background: linear-gradient(90deg,#00f2fe,#4facfe);
+  border:none;
+  padding:10px 20px;
+  color:white;
+  border-radius:8px;
+  cursor:pointer;
+  transition:0.3s;
+}
+
+button:hover {
+  transform:scale(1.05);
+  box-shadow:0 0 20px #4facfe;
+}
+
+button:disabled {
+  opacity:0.55;
+  cursor:not-allowed;
+  transform:none;
+  box-shadow:none;
+}
+
+.architecture-container {
+  display:flex;
+  align-items:center;
+  gap:20px;
+  flex-wrap:wrap;
+  margin-top:20px;
+}
+
+.layer {
+  padding:15px;
+  border-radius:10px;
+  background: linear-gradient(135deg,#00f2fe,#4facfe);
+  min-width:120px;
+  text-align:center;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% { box-shadow:0 0 5px #4facfe;}
+  50% { box-shadow:0 0 20px #4facfe;}
+  100% { box-shadow:0 0 5px #4facfe;}
+}
+
+.metric-box {
+  font-size:22px;
+  margin-top:10px;
+}
+
+canvas {
+  background: rgba(0,0,0,0.4);
+  border-radius:15px;
+  padding:10px;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="navbar">
+  Neural Architecture Reactor ⚡
+</div>
+
+<div class="container">
+
+<div class="glass">
+<h3>Upload Dataset</h3>
+<form id="uploadForm">
+  <label style="display:block;margin-bottom:8px;color:rgba(224,224,255,0.9);">Dataset (CSV)</label>
+  <input type="file" name="file" required>
+
+  <label style="display:block;margin-top:12px;margin-bottom:8px;color:rgba(224,224,255,0.9);">NAS Type</label>
+  <select name="nas_type">
+    <option value="random">Random</option>
+    <option value="evolutionary">Evolutionary</option>
+    <option value="progressive">Progressive</option>
+  </select>
+
+  <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap;align-items:center;">
+    candidates
+    <input type="number" name="candidates" value="4" min="1" placeholder="Candidates (e.g. 4)">
+    epoches
+    <input type="number" name="epochs" value="5" min="1" placeholder="Epochs (e.g. 3)">
+      batch size
+    <input type="number" name="batch_size" value="32" min="1" placeholder="Batch size (e.g. 32)">
+  </div>
+
+  <button type="submit" style="margin-top:12px;">Start Evolution</button>
+</form>
+</div>
+
+<div class="glass">
+<h3>Live Neural Architecture</h3>
+<div id="architecture" class="architecture-container"></div>
+</div>
+
+<div class="glass">
+<h3>Training Metrics</h3>
+<div class="metric-box">
+  Loss: <span id="loss">-</span> |
+  Accuracy: <span id="accuracy">-</span>
+</div>
+<canvas id="chart" height="100"></canvas>
+</div>
+
+</div>
+
+<div class="glass">
+<h3>Predict</h3>
+<p>Make predictions with the best-trained model.</p>
+<button id="predictBtn" disabled>Go to Predict</button>
+</div>
+
+<div class="glass">
+<h3>Best Model Summary</h3>
+<pre id="summary"></pre>
+</div>
+
+</div>
+
+<script>
+
+let es = null;
+
+const ctx = document.getElementById('chart').getContext('2d');
+const chart = new Chart(ctx,{
+  type:'line',
+  data:{
+    labels:[],
+    datasets:[
+      {label:'Loss',data:[],borderColor:'#ff4b2b',fill:false},
+      {label:'Accuracy',data:[],borderColor:'#00f2fe',fill:false}
+    ]
+  },
+  options:{
+    responsive:true,
+    scales:{ x:{display:false} }
+  }
+});
+
+function renderArchitecture(layers){
+  const container = document.getElementById('architecture');
+  container.innerHTML = '';
+  layers.forEach(l=>{
+    const div = document.createElement('div');
+    div.className='layer';
+    div.innerText=l;
+    container.appendChild(div);
+  });
+}
+
+document.getElementById('uploadForm').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  if(es){ es.close(); }
+
+  chart.data.labels=[];
+  chart.data.datasets[0].data=[];
+  chart.data.datasets[1].data=[];
+  chart.update();
+
+  const fd = new FormData(e.target);
+  const res = await fetch('/upload',{method:'POST',body:fd});
+  if(!res.ok){ alert("Upload failed"); return;}
+
+  es = new EventSource('/stream');
+
+  es.addEventListener('model_info', (ev)=>{
+    const d = JSON.parse(ev.data);
+    renderArchitecture(d.layer_names || []);
+  });
+
+  es.addEventListener('step', (ev)=>{
+    const d = JSON.parse(ev.data);
+    document.getElementById('loss').innerText = Number(d.loss).toFixed(4);
+    document.getElementById('accuracy').innerText = Number(d.batch_metric).toFixed(4);
+
+    chart.data.labels.push('');
+    chart.data.datasets[0].data.push(d.loss);
+    chart.data.datasets[1].data.push(d.batch_metric);
+    chart.update();
+  });
+
+  es.addEventListener('done', (ev)=>{
+    const d = JSON.parse(ev.data);
+    document.getElementById('summary').innerText =
+      JSON.stringify(d.best_model,null,2);
+    const predictBtn = document.getElementById('predictBtn');
+    if(predictBtn){
+      predictBtn.disabled = false;
+      predictBtn.addEventListener('click', ()=>{
+        window.location.href = '/predict_page';
+      });
+    }
+  });
+
+});
+
+</script>
+
+</body>
+</html>

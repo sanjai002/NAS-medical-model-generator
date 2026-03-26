@@ -1,0 +1,416 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AutoML Predictions</title>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600&display=swap" rel="stylesheet">
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        margin:0;
+        font-family: 'Nunito', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+        background: radial-gradient(circle at 20% 30%, #0f0c29, #302b63, #24243e);
+        color: #e0e0ff;
+        overflow-x:hidden;
+      }
+
+      .navbar {
+        padding:14px 0;
+        background: rgba(0,0,0,0.45);
+        backdrop-filter: blur(8px);
+        border-bottom:1px solid rgba(255,255,255,0.06);
+      }
+
+      .nav-link { color:#e0e0ff !important; }
+
+      .hero-section {
+        padding:40px 20px;
+        text-align:center;
+        color:#e0e0ff;
+        background: rgba(255,255,255,0.03);
+        border-radius:16px;
+        margin:30px auto;
+        max-width:900px;
+        box-shadow:0 10px 30px rgba(70,60,150,0.2);
+        border:1px solid rgba(255,255,255,0.04);
+      }
+
+      .hero-section h1{ font-size:2rem; margin-bottom:6px }
+      .hero-section p{ opacity:0.9 }
+
+      .prediction-container{ max-width:900px; margin:0 auto 60px }
+
+      .input-card{
+        background: rgba(255,255,255,0.02);
+        border-radius:12px;
+        padding:20px;
+        margin-bottom:18px;
+        border:1px solid rgba(255,255,255,0.06);
+        box-shadow:0 6px 20px rgba(70,60,150,0.08);
+      }
+
+      .input-card.numeric{ border-left:6px solid #4facfe }
+      .input-card.categorical{ border-left:6px solid #f093fb }
+
+      .input-label{ font-weight:600; color:#e6e6ff; margin-bottom:8px; display:flex; align-items:center; gap:8px }
+      .input-icon{ width:34px;height:34px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center }
+      .numeric .input-icon{ background: rgba(79,172,254,0.08); color:#4facfe }
+      .categorical .input-icon{ background: rgba(240,147,251,0.08); color:#f093fb }
+
+      .input-hint{ font-size:0.85rem; color:rgba(224,224,255,0.7); margin-top:8px }
+
+      .form-control, .form-select{ background: rgba(0,0,0,0.45); color:#e8e8ff; border:1px solid rgba(255,255,255,0.06); border-radius:8px }
+      .form-control::placeholder{ color: rgba(224,224,255,0.55) }
+
+      .form-actions{ display:flex; gap:12px; margin-top:20px; justify-content:center }
+
+      .btn-predict{ background: linear-gradient(90deg,#00f2fe,#4facfe); border:none; padding:12px 36px; color:#021022; font-weight:700; border-radius:10px; cursor:pointer }
+      .btn-predict:hover{ transform:translateY(-3px); box-shadow:0 8px 30px rgba(79,172,254,0.15) }
+
+      .btn-reset{ background: rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.06); color:#e0e0ff; padding:12px 30px; border-radius:10px }
+
+      .result-section{ background: rgba(0,0,0,0.35); border-radius:12px; padding:30px; margin-top:20px; display:none; border:1px solid rgba(255,255,255,0.04) }
+      .result-section.show{ display:block }
+
+      .result-title{ color:#e0e0ff; font-weight:700; margin-bottom:14px }
+
+      .result-prediction{ background: linear-gradient(90deg,#f093fb,#f5576c); color:white; padding:20px; border-radius:10px; text-align:center; margin-bottom:12px }
+
+      .probabilities-container{ background: rgba(255,255,255,0.02); padding:14px; border-radius:10px }
+
+      .probability-bar{ height:100%; background: linear-gradient(90deg,#00f2fe,#4facfe); border-radius:10px }
+
+      .error-alert{ background: #4b1f1f; color:#ffd6d6; padding:16px; border-radius:10px; display:none }
+      .error-alert.show{ display:block }
+
+      .loading-spinner{ display:none; position:fixed; inset:0; background: rgba(0,0,0,0.6); z-index:9999; justify-content:center; align-items:center }
+      .loading-spinner.show{ display:flex }
+
+      .spinner{ width:50px;height:50px;border:5px solid rgba(255,255,255,0.15); border-top:5px solid #00f2fe; border-radius:50%; animation:spin 1s linear infinite }
+      @keyframes spin{ to{ transform:rotate(360deg) } }
+
+      .status-badge{ display:inline-block; background: rgba(255,255,255,0.03); color:#e0e0ff; padding:8px 14px; border-radius:20px; border:1px solid rgba(255,255,255,0.04); margin-bottom:18px }
+      .status-badge.error{ background: rgba(120,20,20,0.12); color:#ffd6d6 }
+
+      .empty-state{ text-align:center; padding:60px 20px; color: rgba(224,224,255,0.7) }
+      .empty-state i{ font-size:3.6rem; color: rgba(224,224,255,0.12); margin-bottom:18px }
+
+      .back-link{ color:#00f2fe; font-weight:600; margin-bottom:20px; display:inline-flex; gap:8px }
+      .back-link:hover{ color:#4facfe }
+    </style>
+  </head>
+  <body>
+    <nav class="navbar navbar-expand-lg navbar-dark" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3);">
+      <div class="container">
+        <a class="navbar-brand fw-bold" href="/">
+          <i class="bi bi-cpu"></i> AutoML NAS
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+          <div class="navbar-nav ms-auto">
+            <a class="nav-link" href="/" style="color: white; font-weight: 500;">
+              <i class="bi bi-lightning-charge"></i> Training
+            </a>
+            <a class="nav-link active" href="/predict_page" style="color: white; font-weight: 500;">
+              <i class="bi bi-crystal-ball"></i> Prediction
+            </a>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <div class="container">
+      <a href="/" class="back-link">
+        <i class="bi bi-arrow-left"></i> Back to Training
+      </a>
+
+      <div id="modelStatus" class="status-badge"></div>
+
+      <div class="hero-section">
+        <h1><i class="bi bi-sparkles"></i> AI Predictions</h1>
+        <p>Get instant predictions from your trained model</p>
+      </div>
+
+      <div class="prediction-container">
+        <div id="emptyState" class="empty-state">
+          <i class="bi bi-inbox"></i>
+          <h2>No model trained yet</h2>
+          <p>Complete a training run first to make predictions</p>
+          <a href="/" class="btn btn-primary mt-3">Go to Training</a>
+        </div>
+
+        <form id="predictionForm" style="display: none"></form>
+
+        <div id="resultSection" class="result-section">
+          <div class="result-title">
+            <i class="bi bi-check-circle-fill" style="color: #48bb78"></i>
+            Prediction Result
+          </div>
+          <div id="resultContent"></div>
+        </div>
+
+        <div id="errorAlert" class="error-alert">
+          <strong>Error:</strong>
+          <span id="errorMessage"></span>
+        </div>
+      </div>
+    </div>
+
+    <div id="loadingSpinner" class="loading-spinner">
+      <div class="spinner"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+      async function checkModelStatus() {
+        const statusBadge = document.getElementById("modelStatus");
+        try {
+          const res = await fetch("/prediction_schema");
+          if (!res.ok) {
+            statusBadge.className = "status-badge error";
+            statusBadge.innerHTML =
+              '<i class="bi bi-exclamation-circle"></i> No model trained yet';
+            statusBadge.style.display = "block";
+            return false;
+          }
+          const data = await res.json();
+          statusBadge.className = "status-badge";
+          statusBadge.innerHTML =
+            `<i class="bi bi-check-circle"></i> Model Ready (Candidate #${data.best_candidate_id})`;
+          statusBadge.style.display = "block";
+          return true;
+        } catch {
+          statusBadge.style.display = "none";
+          return false;
+        }
+      }
+
+      async function buildPredictionForm() {
+        const form = document.getElementById("predictionForm");
+        const emptyState = document.getElementById("emptyState");
+
+        try {
+          const res = await fetch("/prediction_schema");
+          if (!res.ok) {
+            emptyState.style.display = "block";
+            form.style.display = "none";
+            return;
+          }
+
+          const schema = await res.json();
+          if (!schema.ready) {
+            emptyState.style.display = "block";
+            form.style.display = "none";
+            return;
+          }
+          emptyState.style.display = "none";
+          form.style.display = "block";
+          form.innerHTML = "";
+
+          (schema.fields || []).forEach((field, idx) => {
+            const card = document.createElement("div");
+            card.className = `input-card ${field.type}`;
+
+            const label = document.createElement("div");
+            label.className = "input-label";
+
+            const icon = document.createElement("div");
+            icon.className = "input-icon";
+            icon.innerHTML =
+              field.type === "numeric"
+                ? '<i class="bi bi-123"></i>'
+                : '<i class="bi bi-list-check"></i>';
+
+            const labelText = document.createElement("span");
+            labelText.textContent = field.name;
+            label.appendChild(icon);
+            label.appendChild(labelText);
+
+            card.appendChild(label);
+
+            if (field.type === "numeric") {
+              const input = document.createElement("input");
+              input.type = "number";
+              input.step = "any";
+              input.className = "form-control";
+              input.name = field.name;
+              input.id = `field-${idx}`;
+              input.placeholder = `e.g. ${field.example.toFixed(2)} (range: ${field.min.toFixed(2)} to ${field.max.toFixed(2)})`;
+              input.required = true;
+              card.appendChild(input);
+
+              const hint = document.createElement("div");
+              hint.className = "input-hint";
+              hint.innerHTML =
+                `<i class="bi bi-info-circle"></i> Min: ${field.min.toFixed(2)}, Max: ${field.max.toFixed(2)}, Avg: ${field.mean.toFixed(2)}`;
+              card.appendChild(hint);
+            } else {
+              const select = document.createElement("select");
+              select.className = "form-select";
+              select.name = field.name;
+              select.id = `field-${idx}`;
+              select.required = true;
+
+              const placeholder = document.createElement("option");
+              placeholder.value = "";
+              placeholder.textContent = `-- Select ${field.name} --`;
+              select.appendChild(placeholder);
+
+              (field.choices || []).forEach((choice) => {
+                const opt = document.createElement("option");
+                opt.value = choice;
+                opt.textContent = choice;
+                if (choice === field.example) {
+                  opt.textContent += " (example)";
+                }
+                select.appendChild(opt);
+              });
+
+              card.appendChild(select);
+
+              const hint = document.createElement("div");
+              hint.className = "input-hint";
+              hint.innerHTML = `<i class="bi bi-list"></i> ${field.choices.length} options available`;
+              card.appendChild(hint);
+            }
+
+            form.appendChild(card);
+          });
+
+          // Add action buttons
+          const actionsDiv = document.createElement("div");
+          actionsDiv.className = "form-actions";
+
+          const predictBtn = document.createElement("button");
+          predictBtn.type = "submit";
+          predictBtn.className = "btn-predict";
+          predictBtn.innerHTML =
+            '<i class="bi bi-lightning-charge"></i> Make Prediction';
+          actionsDiv.appendChild(predictBtn);
+
+          const resetBtn = document.createElement("button");
+          resetBtn.type = "reset";
+          resetBtn.className = "btn-reset";
+          resetBtn.innerHTML = '<i class="bi bi-arrow-clockwise"></i> Reset';
+          actionsDiv.appendChild(resetBtn);
+
+          form.appendChild(actionsDiv);
+          form.addEventListener("submit", handlePredictionSubmit);
+        } catch (err) {
+          showError("Failed to load prediction form");
+          console.error(err);
+        }
+      }
+
+      function showError(message) {
+        const alert = document.getElementById("errorAlert");
+        document.getElementById("errorMessage").textContent = message;
+        alert.classList.add("show");
+        setTimeout(() => alert.classList.remove("show"), 5000);
+      }
+
+      function showLoading(show) {
+        const spinner = document.getElementById("loadingSpinner");
+        if (show) {
+          spinner.classList.add("show");
+        } else {
+          spinner.classList.remove("show");
+        }
+      }
+
+      async function handlePredictionSubmit(e) {
+        e.preventDefault();
+        showLoading(true);
+
+        const formData = new FormData(e.target);
+        const payload = Object.fromEntries(formData.entries());
+
+        try {
+          const res = await fetch("/predict", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+
+          const result = await res.json();
+
+          if (!res.ok) {
+            throw new Error(result.error || "Prediction failed");
+          }
+
+          displayResult(result);
+        } catch (err) {
+          showError(err.message);
+        } finally {
+          showLoading(false);
+        }
+      }
+
+      function displayResult(result) {
+        const resultSection = document.getElementById("resultSection");
+        const resultContent = document.getElementById("resultContent");
+
+        if (result.task === "classification") {
+          let html = `
+            <div class="result-prediction">
+              <div class="result-prediction-label">Predicted Class</div>
+              <div class="result-prediction-value">${result.prediction}</div>
+            </div>
+          `;
+
+          if (result.probabilities && Object.keys(result.probabilities).length > 0) {
+            html += "<div class='probabilities-container'>";
+            html += "<h6 class='mb-3'>Class Probabilities</h6>";
+
+            const probs = Object.entries(result.probabilities);
+            probs.forEach(([className, prob]) => {
+              const percentage = (prob * 100).toFixed(1);
+              html += `
+                <div class="probability-item">
+                  <div class="probability-label">${className}</div>
+                  <div class="probability-bar-container">
+                    <div class="probability-bar" style="width: ${percentage}%"></div>
+                  </div>
+                  <div class="probability-percent">${percentage}%</div>
+                </div>
+              `;
+            });
+
+            html += "</div>";
+          }
+
+          resultContent.innerHTML = html;
+        } else {
+          resultContent.innerHTML = `
+            <div class="result-prediction">
+              <div class="result-prediction-label">Predicted Value</div>
+              <div class="result-prediction-value">${parseFloat(result.prediction).toFixed(4)}</div>
+            </div>
+          `;
+        }
+
+        resultSection.classList.add("show");
+        resultSection.scrollIntoView({ behavior: "smooth" });
+      }
+
+      // Initialize on page load
+      checkModelStatus();
+      buildPredictionForm();
+      
+      // Refresh model status and form every 2 seconds
+      setInterval(() => {
+        checkModelStatus();
+      }, 2000);
+    </script>
+  </body>
+</html>
