@@ -218,6 +218,7 @@
           form.innerHTML = "";
 
           (schema.fields || []).forEach((field, idx) => {
+
             const card = document.createElement("div");
             card.className = `input-card ${field.type}`;
 
@@ -238,7 +239,36 @@
 
             card.appendChild(label);
 
-            if (field.type === "numeric") {
+            // Special handling for 'sex' field
+            if (field.name.toLowerCase() === "sex") {
+              const select = document.createElement("select");
+              select.className = "form-select";
+              select.name = field.name;
+              select.id = `field-${idx}`;
+              select.required = true;
+
+              const placeholder = document.createElement("option");
+              placeholder.value = "";
+              placeholder.textContent = `-- Select Sex --`;
+              select.appendChild(placeholder);
+
+              const optMale = document.createElement("option");
+              optMale.value = "1";
+              optMale.textContent = "Male";
+              select.appendChild(optMale);
+
+              const optFemale = document.createElement("option");
+              optFemale.value = "0";
+              optFemale.textContent = "Female";
+              select.appendChild(optFemale);
+
+              card.appendChild(select);
+
+              const hint = document.createElement("div");
+              hint.className = "input-hint";
+              hint.innerHTML = `<i class=\"bi bi-list\"></i> 1 = Male, 0 = Female`;
+              card.appendChild(hint);
+            } else if (field.type === "numeric") {
               const input = document.createElement("input");
               input.type = "number";
               input.step = "any";
@@ -252,7 +282,7 @@
               const hint = document.createElement("div");
               hint.className = "input-hint";
               hint.innerHTML =
-                `<i class="bi bi-info-circle"></i> Min: ${field.min.toFixed(2)}, Max: ${field.max.toFixed(2)}, Avg: ${field.mean.toFixed(2)}`;
+                `<i class=\"bi bi-info-circle\"></i> Min: ${field.min.toFixed(2)}, Max: ${field.max.toFixed(2)}, Avg: ${field.mean.toFixed(2)}`;
               card.appendChild(hint);
             } else {
               const select = document.createElement("select");
@@ -280,7 +310,7 @@
 
               const hint = document.createElement("div");
               hint.className = "input-hint";
-              hint.innerHTML = `<i class="bi bi-list"></i> ${field.choices.length} options available`;
+              hint.innerHTML = `<i class=\"bi bi-list\"></i> ${field.choices.length} options available`;
               card.appendChild(hint);
             }
 

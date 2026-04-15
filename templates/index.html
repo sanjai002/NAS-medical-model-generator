@@ -241,7 +241,7 @@ document.getElementById('uploadForm').addEventListener('submit', async (e)=>{
     if(predictBtn){
       predictBtn.disabled = false;
       predictBtn.addEventListener('click', ()=>{
-        alert('Prediction is not available');
+        window.location.href = '/predict_page';
       });
     }
   });
