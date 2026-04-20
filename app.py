@@ -119,6 +119,7 @@ from data_pipeline import load_and_prepare_dataset
 #   run_random_search       – N independent random architectures.
 from nas_engine import (
     CandidateResult,
+    generate_readable_summary,
     run_evolutionary_search,
     run_progressive_search,
     run_random_search,
@@ -183,6 +184,8 @@ class RuntimeState:
     run_in_progress : bool
         True while a NAS run is actively training.  The /upload route
         checks this to reject concurrent requests (returns 409).
+    readable_summary: str
+        Human-friendly explanation of the best model for UI display.
     """
     trained_candidates: dict[int, dict[str, Any]] = field(default_factory=dict)
     best_candidate_id: int | None = None
@@ -194,6 +197,7 @@ class RuntimeState:
     task: str | None = None
     target_name: str | None = None
     run_in_progress: bool = False
+    readable_summary: str = ""
 
 
 # Single global instance of RuntimeState – shared across all threads.
@@ -410,7 +414,11 @@ def _serialize_result(r: CandidateResult) -> dict[str, Any]:
         "final_mse": r.final_mse,
         "final_loss": r.final_loss,
         "final_metric": r.final_metric,
+        "val_metric": r.val_metric,
         "total_params": r.total_params,
+        "optimizer": r.optimizer,
+        "learning_rate": r.learning_rate,
+        "training_time": r.training_time,
         "layer_names": r.layer_names,
         "activations": r.activations,
         "model_path": r.model_path,
@@ -441,20 +449,20 @@ def _build_report(results: list[CandidateResult], best: CandidateResult, task: s
     dict[str, Any]
         The complete report ready for JSON serialization.
     """
+    all_models = [_serialize_result(x) for x in results]
+    best_model = _serialize_result(best)
+    readable_summary = generate_readable_summary(
+        best_model_info=best_model,
+        all_models=all_models,
+        task_type=task,
+    )
+
     return {
         "timestamp": datetime.utcnow().isoformat() + "Z",
-        "task": task,
-        "best_candidate": best.candidate_id,
-        "best_summary": {
-            "architecture": best.architecture,
-            "total_params": best.total_params,
-            "layer_names": best.layer_names,
-            "activations": best.activations,
-            "final_accuracy": best.final_accuracy,
-            "final_mse": best.final_mse,
-            "final_loss": best.final_loss,
-        },
-        "candidates": [_serialize_result(x) for x in results],
+        "task_type": task,
+        "best_model": best_model,
+        "all_models": all_models,
+        "readable_summary": readable_summary,
     }
 
 
@@ -536,6 +544,7 @@ def _train_worker(filepath: str, nas_type: str, candidates: int, batch_size: int
         state.task = None
         state.target_name = None
         state.run_in_progress = True   # Flag that a run is now active.
+        state.readable_summary = ""
 
     # ── Step 2: Clean up old files (keep the current upload) ──
     _cleanup_old_artifacts(exclude=[Path(filepath)])
@@ -587,6 +596,7 @@ def _train_worker(filepath: str, nas_type: str, candidates: int, batch_size: int
                 generations=3,
                 batch_size=batch_size,
                 epochs=epochs,
+                candidate_limit=candidates,
             )
         else:
             # Progressive Search: start small and incrementally grow the network.
@@ -640,7 +650,11 @@ def _train_worker(filepath: str, nas_type: str, candidates: int, batch_size: int
                     "final_accuracy": r.final_accuracy,
                     "final_mse": r.final_mse,
                     "final_loss": r.final_loss,
+                    "val_metric": r.val_metric,
                     "total_params": r.total_params,
+                    "optimizer": r.optimizer,
+                    "learning_rate": r.learning_rate,
+                    "training_time": r.training_time,
                     "layer_names": r.layer_names,
                     "activations": r.activations,
                     "file": r.model_path,
@@ -651,6 +665,7 @@ def _train_worker(filepath: str, nas_type: str, candidates: int, batch_size: int
             state.best_model_path = best.model_path
             state.report_path = report_path
             state.pipeline_path = pipeline_path
+            state.readable_summary = report.get("readable_summary", "")
 
         # ── Step 10: Clear the model cache ──
         # A new best model was just trained, so the old cached model is stale.
@@ -675,6 +690,7 @@ def _train_worker(filepath: str, nas_type: str, candidates: int, batch_size: int
                     "final_mse": best.final_mse,
                     "final_loss": best.final_loss,
                 },
+                "readable_summary": report.get("readable_summary", ""),
             },
             "done",
         )
@@ -734,7 +750,7 @@ def upload():
     Expected multipart/form-data fields:
       file       – the CSV or Excel dataset file (required).
       nas_type   – "random", "evolutionary", or "progressive" (default: "random").
-      candidates – number of candidates / population size (1–6, default: 4).
+    max_candidates – maximum number of candidates to generate/train (1–50, default: 5).
       batch_size – training batch size (16–32, default: 32).
       epochs     – max training epochs per candidate (1–5, default: 3).
 
@@ -769,7 +785,8 @@ def upload():
         return jsonify({"error": "Invalid NAS type"}), 400
 
     # Clamp user-provided integers to safe ranges.
-    candidates = _clamp(_parse_int(request.form.get("candidates"), 4), 1, 6)   # 1–6
+    raw_candidates = request.form.get("max_candidates", request.form.get("candidates"))
+    candidates = _clamp(_parse_int(raw_candidates, 5), 1, 50)                    # 1–50
     batch_size = _clamp(_parse_int(request.form.get("batch_size"), 32), 16, 32) # 16–32
     epochs = _clamp(_parse_int(request.form.get("epochs"), 3), 1, 5)           # 1–5
 
@@ -796,6 +813,33 @@ def upload():
             "candidates": candidates,
             "batch_size": batch_size,
             "epochs": epochs,
+        }
+    )
+
+
+@app.route("/api/model-comparison", methods=["GET"])
+def api_model_comparison():
+    """
+    Return candidate-comparison data for the UI table + readable summary card.
+    """
+    with state_lock:
+        if not state.report_path:
+            return jsonify({"ready": False, "message": "No training report available yet"}), 404
+        report_path = state.report_path
+
+    try:
+        with open(report_path, "r", encoding="utf-8") as f:
+            report = json.load(f)
+    except Exception as e:
+        return jsonify({"ready": False, "message": f"Failed to read report: {e}"}), 500
+
+    return jsonify(
+        {
+            "ready": True,
+            "task_type": report.get("task_type"),
+            "best_model": report.get("best_model", {}),
+            "all_models": report.get("all_models", []),
+            "readable_summary": report.get("readable_summary", ""),
         }
     )
 

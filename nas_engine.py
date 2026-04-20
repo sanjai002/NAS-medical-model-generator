@@ -60,6 +60,7 @@ from __future__ import annotations
 # gc (garbage collector) – explicitly called after each candidate to reclaim
 #   memory from deleted Keras models and TensorFlow graph objects.
 import gc
+import time
 
 # random – used to generate random architectures, pick random mutations,
 #   and select random unit sizes / activation functions.
@@ -69,7 +70,7 @@ import random
 from dataclasses import dataclass
 
 # Callable type hint – used for the push_event callback signature.
-from typing import Callable
+from typing import Any, Callable
 
 # NumPy – infinity value (np.inf) and norm calculation (np.linalg.norm).
 import numpy as np
@@ -153,7 +154,11 @@ class CandidateResult:
     final_metric: float
     final_accuracy: float | None
     final_mse: float | None
+    val_metric: float
     val_performance: float
+    training_time: float
+    optimizer: str
+    learning_rate: float
 
 
 # ---------------------------------------------------------------------------
@@ -680,6 +685,9 @@ def _fit_candidate(
         # StreamCallback: our custom callback that sends live events to the browser.
         cb_stream = StreamCallback(push_event=push_event, candidate_id=candidate_id, task=data.task)
 
+        # Measure wall-clock training time for UI/report comparison.
+        fit_start = time.perf_counter()
+
         # ── Step 8: Train the model ──
         # epochs are clamped to [1, 5] as a safety measure.
         # verbose=0 suppresses Keras' own console output (we use SSE instead).
@@ -690,6 +698,7 @@ def _fit_candidate(
             verbose=0,
             callbacks=[cb_early, cb_stream],
         )
+        training_time = float(time.perf_counter() - fit_start)
 
         # ── Step 9: Evaluate on test set and validation set ──
         test_ds = tf.data.Dataset.from_tensor_slices((data.X_test, data.y_test)).batch(batch_size)
@@ -703,17 +712,19 @@ def _fit_candidate(
         final_metric = float(eval_vals[1]) if len(eval_vals) > 1 else float("nan")  # Test acc/mse
 
         # ── Step 10: Compute task-specific result values ──
+        val_metric = float(val_vals[1]) if len(val_vals) > 1 else float(val_vals[0])
+
         if data.task == "classification":
             final_accuracy = final_metric       # Test accuracy (e.g. 0.85)
             final_mse = None                    # Not applicable for classification
             # val_perf is validation accuracy – used for ranking candidates.
-            val_perf = float(val_vals[1]) if len(val_vals) > 1 else 0.0
+            val_perf = val_metric
         else:
             final_accuracy = None               # Not applicable for regression
             final_mse = final_metric            # Test MSE value
             # For regression, val_perf is NEGATIVE MSE so that max() still picks
             # the best (lowest MSE) candidate.
-            val_perf = -float(val_vals[1]) if len(val_vals) > 1 else -float(val_vals[0])
+            val_perf = -val_metric
 
         # ── Step 11: Save the trained model to disk ──
         model.save(model_path)
@@ -730,7 +741,11 @@ def _fit_candidate(
             final_metric=final_metric,
             final_accuracy=final_accuracy,
             final_mse=final_mse,
+            val_metric=val_metric,
             val_performance=val_perf,
+            training_time=training_time,
+            optimizer="Adam",
+            learning_rate=0.001,
         )
 
     finally:
@@ -792,6 +807,8 @@ def run_random_search(
     list[CandidateResult]
         Results for all candidates that trained successfully.
     """
+    candidate_count = max(1, min(50, int(candidate_count)))
+
     results: list[CandidateResult] = []   # Accumulator for successful results.
     cand_id = start_candidate_id          # Current candidate ID counter.
 
@@ -814,7 +831,11 @@ def run_random_search(
                     "final_accuracy": result.final_accuracy,
                     "final_mse": result.final_mse,
                     "final_loss": result.final_loss,
+                    "val_metric": result.val_metric,
                     "total_params": result.total_params,
+                    "optimizer": result.optimizer,
+                    "learning_rate": result.learning_rate,
+                    "training_time": result.training_time,
                 },
                 "result",  # Event type that the frontend listens for.
             )
@@ -836,6 +857,7 @@ def run_evolutionary_search(
     generations: int,
     batch_size: int,
     epochs: int,
+    candidate_limit: int | None = None,
     start_candidate_id: int = 1,
 ):
     """
@@ -878,9 +900,10 @@ def run_evolutionary_search(
     list[CandidateResult]
         All successfully trained candidates across all generations.
     """
-    # Clamp population_size and generations to safe ranges.
-    population_size = max(4, min(6, population_size))   # Between 4 and 6
-    generations = max(2, min(3, generations))             # Between 2 and 3
+    # Respect the user-configured global candidate cap.
+    max_candidates = max(1, min(50, int(candidate_limit if candidate_limit is not None else population_size)))
+    population_size = max(1, min(int(population_size), max_candidates))
+    generations = max(1, min(5, int(generations)))
 
     # Initialize the first generation with random architectures.
     population = [random_architecture() for _ in range(population_size)]
@@ -889,6 +912,13 @@ def run_evolutionary_search(
     cand_id = start_candidate_id
 
     for gen in range(1, generations + 1):
+        if len(results) >= max_candidates:
+            break
+
+        remaining = max_candidates - len(results)
+        if remaining <= 0:
+            break
+
         # Notify the frontend that a new generation has started.
         push_event({"message": f"Evolution generation {gen} started"}, "status")
 
@@ -896,7 +926,7 @@ def run_evolutionary_search(
         scored: list[tuple[float, dict]] = []
 
         # Train every architecture in the current population.
-        for arch in population:
+        for arch in population[:remaining]:
             model_path = f"{output_dir}/candidate_{cand_id}.keras"
             result = _fit_candidate(data, arch, cand_id, model_path, push_event, batch_size, epochs)
 
@@ -909,7 +939,11 @@ def run_evolutionary_search(
                         "final_accuracy": result.final_accuracy,
                         "final_mse": result.final_mse,
                         "final_loss": result.final_loss,
+                        "val_metric": result.val_metric,
                         "total_params": result.total_params,
+                        "optimizer": result.optimizer,
+                        "learning_rate": result.learning_rate,
+                        "training_time": result.training_time,
                     },
                     "result",
                 )
@@ -987,7 +1021,7 @@ def run_progressive_search(
         All successfully trained candidates in this progressive run.
     """
     # Ensure at least 1 candidate is trained.
-    candidate_limit = max(1, candidate_limit)
+    candidate_limit = max(1, min(50, int(candidate_limit)))
 
     # Start with a minimal 1-layer architecture.
     arch = {
@@ -1017,7 +1051,11 @@ def run_progressive_search(
                 "final_accuracy": result.final_accuracy,
                 "final_mse": result.final_mse,
                 "final_loss": result.final_loss,
+                "val_metric": result.val_metric,
                 "total_params": result.total_params,
+                "optimizer": result.optimizer,
+                "learning_rate": result.learning_rate,
+                "training_time": result.training_time,
             },
             "result",
         )
@@ -1046,3 +1084,61 @@ def run_progressive_search(
         cand_id += 1
 
     return results
+
+
+def generate_readable_summary(
+    best_model_info: dict[str, Any],
+    all_models: list[dict[str, Any]],
+    task_type: str,
+) -> str:
+    """
+    Produce a human-readable best-model explanation for UI/report display.
+    """
+    if not all_models:
+        return "No candidate models were available to summarize."
+
+    fastest = min(all_models, key=lambda m: float(m.get("training_time", float("inf"))))
+    smallest = min(all_models, key=lambda m: int(m.get("total_params", 10**18)))
+
+    units = best_model_info.get("architecture", {}).get("dense_units", [])
+    n_layers = len(units)
+    units_txt = ", ".join(str(x) for x in units) if units else "unknown"
+
+    activation = best_model_info.get("architecture", {}).get("activation")
+    if not activation:
+        acts = best_model_info.get("activations") or []
+        activation = acts[0] if acts else "unknown"
+
+    optimizer = best_model_info.get("optimizer", "Adam")
+    lr = float(best_model_info.get("learning_rate", 0.001))
+    params = int(best_model_info.get("total_params", 0))
+    best_id = int(best_model_info.get("candidate", -1))
+    train_sec = float(best_model_info.get("training_time", 0.0))
+
+    if task_type == "classification":
+        score = float(best_model_info.get("val_metric", best_model_info.get("final_accuracy", 0.0)))
+        score_line = f"It achieved {score * 100:.1f}% validation accuracy in {train_sec:.1f} seconds."
+        reason_line = "Compared to the other candidates, it delivered the strongest validation accuracy while keeping model complexity practical."
+    else:
+        score = float(best_model_info.get("val_metric", best_model_info.get("final_mse", 0.0)))
+        rmse = score ** 0.5 if score >= 0 else float("nan")
+        score_line = f"It achieved validation MAE/MSE quality with MSE {score:.4f} (RMSE {rmse:.4f}) in {train_sec:.1f} seconds."
+        reason_line = "Compared to the other candidates, it reached the lowest validation error while maintaining reasonable complexity."
+
+    badge_fragments: list[str] = []
+    if best_id == int(fastest.get("candidate", -999999)):
+        badge_fragments.append("Fastest Training")
+    if best_id == int(smallest.get("candidate", -999999)):
+        badge_fragments.append("Smallest Model")
+
+    badges_txt = f" Badges: {', '.join(badge_fragments)}." if badge_fragments else ""
+
+    return (
+        f"Best Model: Model {best_id}. "
+        f"This model contains {n_layers} hidden layers with {units_txt} neurons. "
+        f"It uses the {activation} activation function and the {optimizer} optimizer. "
+        f"The learning rate is {lr:g}. "
+        f"The model has approximately {params:,} trainable parameters. "
+        f"{score_line} "
+        f"{reason_line}{badges_txt}"
+    )

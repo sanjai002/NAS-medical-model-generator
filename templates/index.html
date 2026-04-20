@@ -49,6 +49,13 @@ input, select {
   border-radius:6px;
 }
 
+label {
+  display:block;
+  margin-top:12px;
+  margin-bottom:8px;
+  color:rgba(224,224,255,0.9);
+}
+
 button {
   background: linear-gradient(90deg,#00f2fe,#4facfe);
   border:none;
@@ -105,6 +112,66 @@ canvas {
   padding:10px;
 }
 
+.summary-card {
+  border: 1px solid rgba(46, 204, 113, 0.55);
+  border-radius: 14px;
+  padding: 16px;
+  background: rgba(46, 204, 113, 0.10);
+  line-height: 1.6;
+  min-height: 92px;
+}
+
+.placeholder {
+  opacity: .75;
+  font-style: italic;
+}
+
+.badges-row {
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  margin-top:10px;
+}
+
+.badge {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.badge-best { background:#27ae60; color:#fff; }
+.badge-fast { background:#3498db; color:#fff; }
+.badge-small { background:#8e44ad; color:#fff; }
+
+.table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+table {
+  width:100%;
+  min-width: 980px;
+  border-collapse: collapse;
+}
+
+th, td {
+  border:1px solid rgba(255,255,255,0.18);
+  padding:10px;
+  text-align:left;
+  white-space: nowrap;
+}
+
+th {
+  background: rgba(0,0,0,0.40);
+}
+
+tr.best-row {
+  font-weight: 700;
+  border: 2px solid #2ecc71;
+  background: rgba(46, 204, 113, 0.18);
+}
+
 </style>
 </head>
 
@@ -119,26 +186,32 @@ canvas {
 <div class="glass">
 <h3>Upload Dataset</h3>
 <form id="uploadForm">
-  <label style="display:block;margin-bottom:8px;color:rgba(224,224,255,0.9);">Dataset (CSV)</label>
+  <label>Dataset (CSV)</label>
   <input type="file" name="file" required>
 
-  <label style="display:block;margin-top:12px;margin-bottom:8px;color:rgba(224,224,255,0.9);">NAS Type</label>
+  <label>NAS Type</label>
   <select name="nas_type">
     <option value="random">Random</option>
     <option value="evolutionary">Evolutionary</option>
     <option value="progressive">Progressive</option>
   </select>
 
-  <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap;align-items:center;">
-    candidates
-    <input type="number" name="candidates" value="4" min="1" placeholder="Candidates (e.g. 4)">
-    epoches
-    <input type="number" name="epochs" value="5" min="1" placeholder="Epochs (e.g. 3)">
-      batch size
-    <input type="number" name="batch_size" value="32" min="1" placeholder="Batch size (e.g. 32)">
+  <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap;align-items:flex-end;">
+    <div>
+      <label>Maximum Candidate Models</label>
+      <input type="number" name="max_candidates" value="5" min="1" max="50" placeholder="Maximum Candidate Models">
+    </div>
+    <div>
+      <label>Epochs</label>
+      <input type="number" name="epochs" value="5" min="1" placeholder="Epochs">
+    </div>
+    <div>
+      <label>Batch Size</label>
+      <input type="number" name="batch_size" value="32" min="1" placeholder="Batch size">
+    </div>
   </div>
 
-  <button type="submit" style="margin-top:12px;">Start Evolution</button>
+  <button type="submit" style="margin-top:12px;">Start Training</button>
 </form>
 </div>
 
@@ -151,11 +224,41 @@ canvas {
 <h3>Training Metrics</h3>
 <div class="metric-box">
   Loss: <span id="loss">-</span> |
-  Accuracy: <span id="accuracy">-</span>
+  Metric: <span id="metric">-</span>
 </div>
 <canvas id="chart" height="100"></canvas>
 </div>
 
+<div class="glass">
+<h3>Best Model Summary</h3>
+<div id="summaryCard" class="summary-card">
+  <div id="summaryPlaceholder" class="placeholder">Summary will appear when training completes.</div>
+  <div id="summaryText" style="display:none;"></div>
+  <div id="summaryBadges" class="badges-row" style="display:none;"></div>
+</div>
+</div>
+
+<div class="glass">
+<h3>Model Comparison</h3>
+<div id="comparisonPlaceholder" class="placeholder">No comparison data yet.</div>
+<div class="table-wrap">
+  <table id="comparisonTable" style="display:none;">
+    <thead>
+      <tr>
+        <th>Model</th>
+        <th>Layers</th>
+        <th>Units</th>
+        <th>Parameters</th>
+        <th>Optimizer</th>
+        <th>Learning Rate</th>
+        <th>Validation Score</th>
+        <th>Training Time</th>
+        <th>Best</th>
+      </tr>
+    </thead>
+    <tbody id="comparisonBody"></tbody>
+  </table>
+</div>
 </div>
 
 <div class="glass">
@@ -164,16 +267,12 @@ canvas {
 <button id="predictBtn" disabled>Go to Predict</button>
 </div>
 
-<div class="glass">
-<h3>Best Model Summary</h3>
-<pre id="summary"></pre>
-</div>
-
 </div>
 
 <script>
 
 let es = null;
+let currentTaskType = null;
 
 const ctx = document.getElementById('chart').getContext('2d');
 const chart = new Chart(ctx,{
@@ -182,7 +281,7 @@ const chart = new Chart(ctx,{
     labels:[],
     datasets:[
       {label:'Loss',data:[],borderColor:'#ff4b2b',fill:false},
-      {label:'Accuracy',data:[],borderColor:'#00f2fe',fill:false}
+      {label:'Metric',data:[],borderColor:'#00f2fe',fill:false}
     ]
   },
   options:{
@@ -202,9 +301,132 @@ function renderArchitecture(layers){
   });
 }
 
+function setLoadingState(isLoading){
+  const summaryPlaceholder = document.getElementById('summaryPlaceholder');
+  const summaryText = document.getElementById('summaryText');
+  const summaryBadges = document.getElementById('summaryBadges');
+  const comparisonPlaceholder = document.getElementById('comparisonPlaceholder');
+  const comparisonTable = document.getElementById('comparisonTable');
+
+  if(isLoading){
+    summaryPlaceholder.style.display = '';
+    summaryPlaceholder.innerText = 'Training in progress... building readable summary.';
+    summaryText.style.display = 'none';
+    summaryBadges.style.display = 'none';
+    summaryBadges.innerHTML = '';
+
+    comparisonPlaceholder.style.display = '';
+    comparisonPlaceholder.innerText = 'Training in progress... model comparison table will appear soon.';
+    comparisonTable.style.display = 'none';
+    document.getElementById('comparisonBody').innerHTML = '';
+  }
+}
+
+function createBadge(label, className){
+  const span = document.createElement('span');
+  span.className = `badge ${className}`;
+  span.innerText = label;
+  return span;
+}
+
+function renderSummary(summary, models, bestModel){
+  const summaryPlaceholder = document.getElementById('summaryPlaceholder');
+  const summaryText = document.getElementById('summaryText');
+  const summaryBadges = document.getElementById('summaryBadges');
+
+  summaryPlaceholder.style.display = 'none';
+  summaryText.style.display = '';
+  summaryText.innerText = summary || 'No summary available.';
+
+  if(!Array.isArray(models) || models.length === 0){
+    summaryBadges.style.display = 'none';
+    summaryBadges.innerHTML = '';
+    return;
+  }
+
+  const bestCandidate = bestModel?.candidate;
+  const fastest = [...models].sort((a,b)=> (a.training_time ?? Number.MAX_SAFE_INTEGER) - (b.training_time ?? Number.MAX_SAFE_INTEGER))[0];
+  const smallest = [...models].sort((a,b)=> (a.total_params ?? Number.MAX_SAFE_INTEGER) - (b.total_params ?? Number.MAX_SAFE_INTEGER))[0];
+
+  summaryBadges.innerHTML = '';
+  summaryBadges.appendChild(createBadge('Best Model', 'badge-best'));
+
+  if(bestCandidate === fastest?.candidate){
+    summaryBadges.appendChild(createBadge('Fastest Training', 'badge-fast'));
+  }
+  if(bestCandidate === smallest?.candidate){
+    summaryBadges.appendChild(createBadge('Most Efficient Model', 'badge-small'));
+  }
+
+  summaryBadges.style.display = '';
+}
+
+function renderComparisonTable(payload){
+  const comparisonPlaceholder = document.getElementById('comparisonPlaceholder');
+  const comparisonTable = document.getElementById('comparisonTable');
+  const comparisonBody = document.getElementById('comparisonBody');
+
+  const models = payload?.all_models || [];
+  const best = payload?.best_model || {};
+  const taskType = payload?.task_type || currentTaskType || 'classification';
+
+  comparisonBody.innerHTML = '';
+
+  if(!models.length){
+    comparisonPlaceholder.style.display = '';
+    comparisonPlaceholder.innerText = 'No comparison records available.';
+    comparisonTable.style.display = 'none';
+    return;
+  }
+
+  for(const m of models){
+    const units = (m.architecture?.dense_units || []).join(' → ');
+    const layers = (m.architecture?.dense_units || []).length;
+    const validationScore = taskType === 'classification'
+      ? `${((m.val_metric ?? m.final_accuracy ?? 0) * 100).toFixed(2)}%`
+      : `${(m.val_metric ?? m.final_mse ?? 0).toFixed(4)} MSE`;
+    const trainingTime = `${Number(m.training_time ?? 0).toFixed(1)} sec`;
+    const isBest = Number(m.candidate) === Number(best.candidate);
+
+    const tr = document.createElement('tr');
+    if(isBest){
+      tr.classList.add('best-row');
+    }
+
+    tr.innerHTML = `
+      <td>Model ${m.candidate}</td>
+      <td>${layers}</td>
+      <td>${units || '-'}</td>
+      <td>${Number(m.total_params || 0).toLocaleString()}</td>
+      <td>${m.optimizer || 'Adam'}</td>
+      <td>${m.learning_rate ?? 0.001}</td>
+      <td>${validationScore}</td>
+      <td>${trainingTime}</td>
+      <td>${isBest ? 'Yes' : 'No'}</td>
+    `;
+    comparisonBody.appendChild(tr);
+  }
+
+  comparisonPlaceholder.style.display = 'none';
+  comparisonTable.style.display = '';
+}
+
+async function fetchComparisonAndSummary(){
+  const res = await fetch('/api/model-comparison');
+  if(!res.ok){
+    return;
+  }
+
+  const payload = await res.json();
+  currentTaskType = payload?.task_type || currentTaskType;
+  renderSummary(payload?.readable_summary, payload?.all_models || [], payload?.best_model || {});
+  renderComparisonTable(payload);
+}
+
 document.getElementById('uploadForm').addEventListener('submit', async (e)=>{
   e.preventDefault();
   if(es){ es.close(); }
+  setLoadingState(true);
 
   chart.data.labels=[];
   chart.data.datasets[0].data=[];
@@ -225,7 +447,7 @@ document.getElementById('uploadForm').addEventListener('submit', async (e)=>{
   es.addEventListener('step', (ev)=>{
     const d = JSON.parse(ev.data);
     document.getElementById('loss').innerText = Number(d.loss).toFixed(4);
-    document.getElementById('accuracy').innerText = Number(d.batch_metric).toFixed(4);
+    document.getElementById('metric').innerText = Number(d.batch_metric).toFixed(4);
 
     chart.data.labels.push('');
     chart.data.datasets[0].data.push(d.loss);
@@ -233,20 +455,29 @@ document.getElementById('uploadForm').addEventListener('submit', async (e)=>{
     chart.update();
   });
 
-  es.addEventListener('done', (ev)=>{
+  es.addEventListener('done', async (ev)=>{
     const d = JSON.parse(ev.data);
-    document.getElementById('summary').innerText =
-      JSON.stringify(d.best_model,null,2);
+    currentTaskType = d.task_type || currentTaskType;
+
+    await fetchComparisonAndSummary();
+
     const predictBtn = document.getElementById('predictBtn');
     if(predictBtn){
       predictBtn.disabled = false;
-      predictBtn.addEventListener('click', ()=>{
+      predictBtn.onclick = ()=>{
         window.location.href = '/predict_page';
-      });
+      };
     }
   });
 
 });
+
+const predictBtn = document.getElementById('predictBtn');
+if(predictBtn){
+  predictBtn.onclick = ()=>{
+    window.location.href = '/predict_page';
+  };
+}
 
 </script>
 
