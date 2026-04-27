@@ -273,6 +273,47 @@ tr.best-row {
 
 let es = null;
 let currentTaskType = null;
+let currentCandidate = null;
+let pointCandidates = [];
+let modelBoundaries = [];
+
+// Custom Chart.js plugin: draws a vertical dashed line + "Model N" label
+// at the start index of each candidate model.
+const modelDividerPlugin = {
+  id: 'modelDivider',
+  afterDraw(chart) {
+    if (!modelBoundaries.length) return;
+    const { ctx, chartArea, scales } = chart;
+    const xScale = scales.x;
+    const totalPoints = chart.data.labels.length;
+    if (!totalPoints || !xScale) return;
+    ctx.save();
+    modelBoundaries.forEach(({ index, candidate }) => {
+      if (index >= totalPoints) return;
+      const x = xScale.getPixelForValue(index);
+      // Vertical dashed line
+      ctx.beginPath();
+      ctx.strokeStyle = 'rgba(255, 210, 60, 0.55)';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([5, 4]);
+      ctx.moveTo(x, chartArea.top);
+      ctx.lineTo(x, chartArea.bottom);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      // Model label badge at top
+      const label = `Model${candidate}`;
+      ctx.font = 'bold 11px Nunito, sans-serif';
+      const tw = ctx.measureText(label).width;
+      ctx.fillStyle = 'rgba(255, 210, 60, 0.18)';
+      ctx.fillRect(x + 3, chartArea.top + 2, tw + 8, 18);
+      ctx.fillStyle = 'rgba(255, 210, 60, 1)';
+      ctx.textAlign = 'left';
+      ctx.fillText(label, x + 7, chartArea.top + 15);
+    });
+    ctx.restore();
+  }
+};
+Chart.register(modelDividerPlugin);
 
 const ctx = document.getElementById('chart').getContext('2d');
 const chart = new Chart(ctx,{
@@ -286,7 +327,22 @@ const chart = new Chart(ctx,{
   },
   options:{
     responsive:true,
-    scales:{ x:{display:false} }
+    animation: false,
+    scales:{ x:{display:false} },
+    plugins:{
+      tooltip:{
+        callbacks:{
+          title(items){
+            const idx = items[0]?.dataIndex;
+            const cand = pointCandidates[idx];
+            return cand != null ? `Model ${cand}` : '';
+          },
+          label(item){
+            return `${item.dataset.label}: ${item.parsed.y.toFixed(4)}`;
+          }
+        }
+      }
+    }
   }
 });
 
@@ -431,6 +487,9 @@ document.getElementById('uploadForm').addEventListener('submit', async (e)=>{
   chart.data.labels=[];
   chart.data.datasets[0].data=[];
   chart.data.datasets[1].data=[];
+  pointCandidates=[];
+  modelBoundaries=[];
+  currentCandidate=null;
   chart.update();
 
   const fd = new FormData(e.target);
@@ -442,6 +501,9 @@ document.getElementById('uploadForm').addEventListener('submit', async (e)=>{
   es.addEventListener('model_info', (ev)=>{
     const d = JSON.parse(ev.data);
     renderArchitecture(d.layer_names || []);
+    currentCandidate = d.candidate;
+    // Record where in the chart this model begins
+    modelBoundaries.push({ index: chart.data.labels.length, candidate: d.candidate });
   });
 
   es.addEventListener('step', (ev)=>{
@@ -449,7 +511,8 @@ document.getElementById('uploadForm').addEventListener('submit', async (e)=>{
     document.getElementById('loss').innerText = Number(d.loss).toFixed(4);
     document.getElementById('metric').innerText = Number(d.batch_metric).toFixed(4);
 
-    chart.data.labels.push('');
+    pointCandidates.push(d.candidate ?? currentCandidate);
+    chart.data.labels.push(chart.data.labels.length);
     chart.data.datasets[0].data.push(d.loss);
     chart.data.datasets[1].data.push(d.batch_metric);
     chart.update();
