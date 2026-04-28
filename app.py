@@ -618,6 +618,26 @@ def _train_worker(filepath: str, nas_type: str, candidates: int, batch_size: int
         # ── Step 6: Select the best candidate ──
         best = _choose_best(results)
 
+        # ── Step 6b: Keep only the best model on disk ──
+        # Delete every candidate .keras file that is NOT the winner, then
+        # rename the winner to "best_model.keras" for a stable, predictable path.
+        best_final_path = os.path.join(uploads, "best_model.keras")
+        for r in results:
+            candidate_file = Path(r.model_path)
+            if r.candidate_id == best.candidate_id:
+                # Rename best candidate → best_model.keras (overwrite if exists)
+                try:
+                    candidate_file.replace(best_final_path)
+                except Exception:
+                    pass
+            else:
+                # Delete non-best candidate files
+                try:
+                    candidate_file.unlink(missing_ok=True)
+                except Exception:
+                    pass
+        best.model_path = best_final_path
+
         # ── Step 7: Build and save the training report to JSON ──
         report = _build_report(results, best, data.task)
         report_path = os.path.join(uploads, "training_report.json")

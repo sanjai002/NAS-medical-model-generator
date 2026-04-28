@@ -201,8 +201,10 @@ def generate_project_report() -> None:
         "Figure 3.2  Preprocessing flow for mixed-type input",
         "Figure 3.3  Candidate training and validation workflow",
         "Figure 3.4  NAS strategy execution overview",
-        "Figure 4.1  Candidate-wise performance comparison",
-        "Figure 4.2  User interface and system outputs",
+        "Figure 4.1  Backend implementation and runtime coordination",
+        "Figure 4.2  Live monitoring and interface implementation",
+        "Figure 5.1  Candidate-wise performance comparison",
+        "Figure 5.2  User interface and system outputs",
     ]:
         add_paragraph(doc, figure)
     doc.add_page_break()
@@ -229,9 +231,11 @@ def generate_project_report() -> None:
         "Table 3.2  Data preprocessing operations and purposes",
         "Table 3.3  API endpoints and purposes",
         "Table 3.4  NAS strategies and characteristics",
-        "Table 4.1  Current run snapshot from training_report.json",
-        "Table 4.2  Candidate-wise result summary",
-        "Table 5.1  Project achievements summary",
+        "Table 4.1  Implementation modules and responsibilities",
+        "Table 4.2  Saved artifacts and reuse roles",
+        "Table 5.1  Current run snapshot from training_report.json",
+        "Table 5.2  Candidate-wise result summary",
+        "Table 6.1  Project achievements summary",
     ]:
         add_paragraph(doc, table)
     doc.add_page_break()
@@ -272,22 +276,29 @@ def generate_project_report() -> None:
         ("3.3 Neural Architecture Search Engine", 1, "42"),
         ("3.4 Model Structure", 1, "45"),
         ("3.5 Summary", 1, "48"),
-        ("CHAPTER 4: RESULTS AND DISCUSSIONS", 0, "49"),
-        ("4.1 Experimental Setup", 1, "49"),
-        ("4.2 Dataset Description", 1, "50"),
-        ("4.3 Candidate Models Generated", 1, "51"),
-        ("4.4 Training and Validation Performance", 1, "52"),
-        ("4.5 Best Model Analysis", 1, "54"),
-        ("4.6 User Interface and System Output", 1, "56"),
-        ("4.7 Discussion of Results", 1, "58"),
-        ("4.8 Limitations of the System", 1, "59"),
-        ("CHAPTER 5: CONCLUSION AND FUTURE SCOPE", 0, "60"),
-        ("5.1 Conclusion", 1, "60"),
-        ("5.2 Achievements of the Project", 1, "61"),
-        ("5.3 Limitations", 1, "62"),
-        ("5.4 Future Scope", 1, "63"),
-        ("REFERENCES", 0, "64"),
-        ("LIST OF PUBLICATIONS", 0, "65"),
+        ("CHAPTER 4: IMPLEMENTATION", 0, "49"),
+        ("4.1 Backend Workflow Implementation", 1, "49"),
+        ("4.2 Data Pipeline Implementation", 1, "51"),
+        ("4.3 NAS Engine Implementation", 1, "53"),
+        ("4.4 Live Monitoring and Frontend Implementation", 1, "55"),
+        ("4.5 Artifact Persistence and Prediction Reuse", 1, "57"),
+        ("4.6 Summary", 1, "58"),
+        ("CHAPTER 5: RESULTS AND DISCUSSION", 0, "59"),
+        ("5.1 Experimental Setup", 1, "59"),
+        ("5.2 Dataset Description", 1, "60"),
+        ("5.3 Candidate Models Generated", 1, "61"),
+        ("5.4 Training and Validation Performance", 1, "62"),
+        ("5.5 Best Model Analysis", 1, "64"),
+        ("5.6 User Interface and System Output", 1, "66"),
+        ("5.7 Discussion of Results", 1, "68"),
+        ("5.8 Limitations of the System", 1, "71"),
+        ("CHAPTER 6: CONCLUSION AND FUTURE SCOPE", 0, "72"),
+        ("6.1 Conclusion", 1, "72"),
+        ("6.2 Achievements of the Project", 1, "73"),
+        ("6.3 Limitations", 1, "74"),
+        ("6.4 Future Scope", 1, "75"),
+        ("REFERENCES", 0, "76"),
+        ("LIST OF PUBLICATIONS", 0, "77"),
     ])
 
     doc.add_page_break()
@@ -544,9 +555,9 @@ def generate_project_report() -> None:
     ])
     add_heading(doc, "3.1.9 Model Storage and Saving", 3)
     add_long_paragraphs(doc, [
-        "Each candidate model is stored as a .keras file. The fitted preprocessor, label encoder, feature schema, and related metadata are stored as a joblib bundle. The run report is stored as JSON.",
-        "This persistence design allows the system to reuse exactly the same preprocessing and model artifacts during later prediction.",
-        "Artifact persistence is one of the strongest practical aspects of the project. Instead of saving only the best neural weights, the software preserves the context required to interpret and reuse those weights. This includes feature ordering, categorical expansion behaviour, class-label mapping, and summary metrics.",
+        "The final persisted neural model is stored as a `.keras` file for the best candidate. The fitted preprocessor, label encoder, feature schema, and related metadata are stored as a joblib bundle. The run report is stored as JSON.",
+        "This persistence design allows the system to reuse exactly the same preprocessing and selected model artifacts during later prediction.",
+        "Artifact persistence is one of the strongest practical aspects of the project. Instead of saving only the neural weights, the software preserves the context required to interpret and reuse those weights. This includes feature ordering, categorical expansion behaviour, class-label mapping, and summary metrics.",
         "The saved files in the uploads directory therefore function as evidence of both process and outcome. They also make the report defensible because reported results can be traced to specific generated artifacts rather than to undocumented transient memory objects."
     ])
     add_bullets(doc, ["Saving Model (.keras)", "Saving Preprocessor (.joblib)", "Training Report Storage"])
@@ -673,8 +684,71 @@ def generate_project_report() -> None:
     ])
 
     doc.add_page_break()
-    add_heading(doc, "CHAPTER 4: RESULTS AND DISCUSSIONS", 1)
-    add_heading(doc, "4.1 Experimental Setup", 2)
+    add_heading(doc, "CHAPTER 4: IMPLEMENTATION", 1)
+    add_heading(doc, "4.1 Backend Workflow Implementation", 2)
+    add_long_paragraphs(doc, [
+        "The implemented system is organized around a Flask application in `app.py` that coordinates file intake, background execution, report generation, artifact download, and prediction serving. The backend does not train directly inside the request-response path. Instead, the `/upload` route validates the dataset and training settings, rejects overlapping runs, and starts a daemon training thread so the web server remains responsive while NAS executes.",
+        "A thread-safe queue and lock-protected runtime state connect the backend workflow to the browser. The queue carries status, model information, and per-step metric events to the `/stream` endpoint, while shared fields such as feature schema, task type, report path, and best model path are updated under locks. This design is important because it makes long-running training visible to the interface without sacrificing control over shared state.",
+        "The backend also centralizes several engineering safeguards. Uploaded filenames are sanitized, form values are clamped to safe ranges, unsupported NAS types are rejected, and a second run cannot begin while a current run is active. These controls are not auxiliary details; they are part of the implementation quality of the system because they reduce misuse and improve predictable behaviour during demonstration.",
+        "Another notable aspect of the backend implementation is that reporting and persistence are part of the same workflow that performs search. After the NAS engine returns candidate results, the backend chooses the best model, writes `training_report.json`, saves `best_pipeline.joblib`, updates runtime state, clears the model cache, and emits the final completion event. This means the implementation treats post-training responsibilities as first-class behaviour rather than as manual follow-up tasks.",
+        "The backend therefore functions as the orchestration layer of the entire project. It receives user intent, triggers controlled execution, manages concurrency, preserves artifacts, and exposes reusable endpoints. This makes Chapter 4 necessary in the report because the methodology describes what should happen, while the implementation chapter explains how that behaviour is concretely realized in the codebase."
+    ])
+    add_report_table(doc, ["Implementation Module", "Primary Files", "Implemented Responsibility"], [
+        ["Web orchestration", "app.py", "Route handling, background worker launch, SSE streaming, artifact paths, downloads"],
+        ["Data preparation", "data_pipeline.py", "Task detection, preprocessing, feature schema creation, train/validation/test split"],
+        ["NAS and training", "nas_engine.py", "Candidate generation, model build/compile/fit/evaluate, search strategies"],
+        ["User interface", "templates/index.html, templates/predict.html", "Upload form, live chart, comparison table, schema-driven prediction form"],
+        ["Persistence", "uploads/", "Best model, preprocessing bundle, JSON report, uploaded dataset evidence"],
+    ])
+    add_heading(doc, "4.2 Data Pipeline Implementation", 2)
+    add_long_paragraphs(doc, [
+        "The data preparation logic is implemented in `data_pipeline.py`, where the system reads CSV or Excel input, determines the target column using the last-column convention, and infers whether the problem is classification or regression. The module then identifies numeric and categorical features and builds separate scikit-learn transformation paths for them. This modularization turns the methodological idea of preprocessing into a repeatable software component rather than a set of ad hoc steps.",
+        "Numeric features are imputed with median values and scaled with `StandardScaler`, while categorical features are imputed with the most frequent value and transformed with `OneHotEncoder`. These steps are combined inside a `ColumnTransformer`, allowing the exact same fitted preprocessing object to be serialized and reused later during prediction. This is one of the strongest implementation decisions in the project because it prevents training-time and inference-time preprocessing drift.",
+        "The implementation also generates a feature schema that records useful metadata for each input column. Numeric fields include example values and summary ranges, while categorical fields include valid choices. This schema is saved together with the preprocessing bundle and later exposed through the prediction schema API, enabling the frontend to render inputs that are aligned with the actual training data structure.",
+        "The data pipeline further implements the effective 60/20/20 train-validation-test split through two-stage splitting logic. Because this split is produced programmatically and attached to the prepared data object, the rest of the application can rely on consistent arrays and metadata without duplicating preparation logic. In other words, the implementation converts what could have been a fragile preprocessing script into a reusable subsystem with clear inputs, outputs, and persistence behaviour.",
+        "This chapter placement is justified because the data pipeline is not merely a methodological prerequisite; it is a substantial implementation artifact in its own right. The code formalizes data handling assumptions, transformation order, metadata production, and downstream reuse. That concrete realization deserves its own explanation between methodology and results."
+    ])
+    add_heading(doc, "4.3 NAS Engine Implementation", 2)
+    add_long_paragraphs(doc, [
+        "The neural architecture search logic is implemented in `nas_engine.py`. This module defines the bounded search space, builds dense neural networks from architecture dictionaries, compiles models according to the detected task type, and executes candidate training for random, evolutionary, and progressive search modes. The implementation is intentionally constrained to dense feed-forward models suitable for tabular data, which keeps the search interpretable and computationally manageable.",
+        "Candidate training is encapsulated in a dedicated helper that clears TensorFlow state, constructs the model, enforces the one-million-parameter guard, compiles the model, streams architecture metadata, fits with early stopping, evaluates on validation and test sets, and returns a structured result object. This sequencing shows that the implementation does not treat NAS as mere architecture sampling; it treats it as a full candidate lifecycle with explicit error handling, cleanup, and metric preservation.",
+        "The module also includes a custom callback for live event publishing. During training, the callback emits batch-level loss and metric information as well as epoch-end validation summaries. This event-driven implementation is significant because it makes the NAS engine visible outside the training loop. The engine does not operate as a closed black box; instead, it continuously informs the rest of the application about what candidate is running and how it is performing.",
+        "Another implementation strength is the explicit preservation of candidate metadata. Candidate ID, architecture configuration, parameter count, optimizer, learning rate, validation metric, final metric, and training time are packaged into result objects that the backend can serialize and interpret. This makes later comparison tables and readable summaries possible without recomputing any information from raw logs.",
+        "The NAS engine therefore stands as the computational core of the application, but its implementation is deeply intertwined with usability and reporting. It is built not only to search, but to search in a way that produces inspectable, streamable, and documentable evidence. That connection between computation and explanation is exactly why the implementation chapter strengthens the academic report."
+    ])
+    add_heading(doc, "4.4 Live Monitoring and Frontend Implementation", 2)
+    add_long_paragraphs(doc, [
+        "The training interface in `templates/index.html` implements the visible side of the NAS workflow. It collects dataset and search settings, submits them to the backend, opens an EventSource connection to `/stream`, and updates the page as new events arrive. The page renders live architecture information, current metric values, a training chart, a readable best-model summary, and a comparison table once training completes.",
+        "This frontend implementation is notable because it translates backend progress into understandable visual feedback. Architecture events update the displayed dense-layer structure, step events append loss and metric points to the chart, and completion events trigger a fetch of model-comparison data for tabular presentation. The interface therefore acts as a real-time explanation layer over the backend workflow rather than as a passive upload form.",
+        "The implementation also includes a schema-driven prediction page in `templates/predict.html`. Instead of hard-coding feature inputs, the frontend requests the saved schema from the backend and generates the form dynamically. This keeps the interface aligned with the trained dataset and reduces the risk that future datasets would require manual HTML editing before prediction can be demonstrated.",
+        "An additional strength of the frontend implementation is that it preserves a coherent sequence of user actions. The user begins by uploading data, then watches model-by-model progress, then reviews comparative outputs, and finally moves to prediction. This sequence mirrors the architecture of the backend and creates a strong implementation narrative in which every visible page element maps to a concrete backend capability.",
+        "Seen from a report-writing perspective, the frontend implementation deserves separate treatment because it proves that the system is demonstrable. The project is not only algorithmically complete; it is also interactively complete. That distinction matters in academic evaluation where clarity of demonstration often determines how convincingly the underlying machine learning work is understood."
+    ])
+    add_heading(doc, "4.5 Artifact Persistence and Prediction Reuse", 2)
+    add_long_paragraphs(doc, [
+        "A major implementation strength of the project is its artifact-preserving design. At the end of a run, the system saves the winning neural model as `best_model.keras`, writes the preprocessing bundle and schema metadata into `best_pipeline.joblib`, and stores structured candidate and summary information in `training_report.json`. These files are not incidental outputs; they are the reusable contract between training time and inference time.",
+        "The prediction implementation depends directly on these persisted artifacts. When the user opens the prediction workflow, the backend exposes the stored schema so the frontend can build valid input controls. On prediction requests, the backend loads the preprocessing bundle, applies exactly the same transformations used during training, loads or reuses the cached best model, and returns a task-appropriate output. This chain shows that the implementation has continuity: training decisions survive beyond the moment of optimization.",
+        "The artifact design also improves auditability and reportability. Because the JSON report preserves candidate-level metrics and the best model path is stored in application state, the system can justify its final choice with concrete evidence. This is particularly valuable for an academic project because it allows the report to connect narrative claims to real files generated in the workspace.",
+        "Another benefit is operational efficiency. The best model is cached in memory after loading so repeated prediction requests do not incur unnecessary disk overhead. This may seem like a small detail, but it demonstrates that the implementation considers serving behaviour in addition to training behaviour. Such details distinguish a coherent system from a one-shot experiment script.",
+        "Taken together, the artifact workflow completes the implementation story. The system does not stop after computing metrics; it saves interpretable outputs, exposes them through routes, and reuses them through prediction. That persistence-and-reuse cycle is one of the strongest justifications for adding a full implementation chapter before discussing results."
+    ])
+    add_report_table(doc, ["Saved Artifact", "Generated By", "Role in Later Workflow"], [
+        ["best_model.keras", "Backend after best-model selection", "Loaded for future prediction and download"],
+        ["best_pipeline.joblib", "Backend persistence step", "Reuses preprocessing, schema, labels, and task metadata"],
+        ["training_report.json", "Report-building step", "Supplies candidate comparison, summary, and evidence for discussion"],
+        ["Uploaded dataset copy", "Upload handler", "Preserves run input context and traceability"],
+    ])
+    add_heading(doc, "4.6 Summary", 2)
+    add_long_paragraphs(doc, [
+        "The implementation chapter shows how the project's methodology becomes operational reality through concrete modules, routes, templates, callbacks, and saved artifacts.",
+        "Backend orchestration, preprocessing, NAS execution, live monitoring, and prediction reuse are all implemented as interacting parts of one system rather than as isolated fragments. This provides the necessary bridge between conceptual methodology and empirical results.",
+        "The new chapter also strengthens the report structure. Methodology now explains what approach the project follows, implementation explains how that approach is encoded in software, and the next chapter can focus cleanly on what outcomes the implemented system produced.",
+        "For academic reading, this sequencing is more natural because it separates design intent, software realization, and experimental evidence. The project therefore benefits from a dedicated implementation chapter both structurally and substantively."
+    ])
+
+    doc.add_page_break()
+    add_heading(doc, "CHAPTER 5: RESULTS AND DISCUSSION", 1)
+    add_heading(doc, "5.1 Experimental Setup", 2)
     add_long_paragraphs(doc, [
         "The workspace currently contains a saved classification run produced by the implemented NAS workflow. The environment is CPU-oriented and uses Flask, TensorFlow/Keras, Pandas, NumPy, and scikit-learn.",
         "The experiment compares multiple candidate architectures generated under bounded search conditions. Progress is streamed to the interface and summarized in training_report.json after completion.",
@@ -684,7 +758,7 @@ def generate_project_report() -> None:
         "In academic terms, the setup is controlled rather than maximalist. It intentionally favours a small, interpretable candidate set over a large opaque search campaign. This makes the outcomes easier to explain, compare, and justify during report evaluation.",
         "The setup also exercises nearly every major subsystem in the application. A run touches file handling, task detection, preprocessing, candidate generation, model training, SSE reporting, artifact writing, and eventual reuse for prediction. Because of that breadth, the resulting evidence is suitable for both technical and academic discussion."
     ])
-    add_heading(doc, "4.2 Dataset Description", 2)
+    add_heading(doc, "5.2 Dataset Description", 2)
     add_long_paragraphs(doc, [
         "The project is designed for mixed-type tabular medical datasets. The preprocessing logic assumes a final target column and feature columns before it.",
         "The literature notes repeatedly reference heart-disease prediction data, which serves as the motivating academic problem domain for the system.",
@@ -693,7 +767,7 @@ def generate_project_report() -> None:
         "This kind of dataset is a suitable target for the project's design because it is structured, moderate in scale, and likely to contain a mixture of physiological and categorical indicators. Such conditions reward careful preprocessing and measured model selection rather than excessive architectural complexity.",
         "The dataset discussion also highlights a practical limitation that the project handles reasonably well: the absence of embedded domain semantics in the code. The system does not hard-code disease-specific feature names, but instead relies on generic tabular processing. This increases reuse while still allowing domain-motivated interpretation in the report."
     ])
-    add_heading(doc, "4.3 Candidate Models Generated", 2)
+    add_heading(doc, "5.3 Candidate Models Generated", 2)
     model_rows = []
     for model in models:
         model_rows.append([
@@ -710,7 +784,7 @@ def generate_project_report() -> None:
         "The generated candidates also show that the search space is neither trivial nor uncontrolled. Even within tight bounds, the project can produce architectures that differ in hidden-unit allocation, activation choice, parameter count, and training-time behaviour. This confirms that bounded search still leaves enough room for meaningful comparison.",
         "From a reporting standpoint, candidate diversity also enriches interpretation. It allows the project to discuss why some models are attractive because of efficiency, why others may be attractive because of test accuracy, and why the final selected model must balance those factors under a consistent ranking policy."
     ])
-    add_heading(doc, "4.4 Training and Validation Performance", 2)
+    add_heading(doc, "5.4 Training and Validation Performance", 2)
     perf_rows = []
     for model in models:
         perf_rows.append([
@@ -745,7 +819,7 @@ def generate_project_report() -> None:
         ["4", "Lower validation score", "Fast compact baseline", "Useful contrast case in bounded search"],
         ["5", "Strong but second-tier validation", "Moderate runtime", "Illustrates trade-off between structure and ranking"],
     ])
-    add_heading(doc, "4.5 Best Model Analysis", 2)
+    add_heading(doc, "5.5 Best Model Analysis", 2)
     add_bullets(doc, [
         f"Best candidate ID: {best.get('candidate', 'Not available')}",
         f"Architecture Details: {best.get('architecture', {})}",
@@ -767,17 +841,17 @@ def generate_project_report() -> None:
         "The contrast between validation-based selection and test-based description is one of the most educational outcomes of the experiment. It shows why rigorous machine learning practice requires discipline in when and how metrics are used.",
         "This distinction is especially important for a system that persists and reuses the selected model. Once the project chooses a winner and saves it for later prediction, that decision should be methodologically defensible, not merely convenient."
     ])
-    add_heading(doc, "4.6 User Interface and System Output", 2)
+    add_heading(doc, "5.6 User Interface and System Output", 2)
     add_long_paragraphs(doc, [
         "The training page supports upload, search-strategy selection, configuration values, and live updates. The prediction page renders input fields dynamically from the saved schema and displays task-aware outputs.",
         "The system output includes not only trained metrics but also reusable model files, preprocessing bundles, and run reports.",
         "From an academic software perspective, the interface is more than a cosmetic layer. It exposes the logic of the project to the user in a structured sequence: upload data, initiate search, monitor progress, review outputs, and perform prediction. That sequence helps evaluators see how the backend modules collaborate in practice.",
-        "The output bundle produced by the system is also notable. Instead of returning only a numeric score, the workflow creates candidate-specific model files, a best-pipeline bundle, and a machine-readable report. This means the result of the experiment is reproducible, downloadable, and reusable for later demonstrations.",
+        "The output bundle produced by the system is also notable. Instead of returning only a numeric score, the workflow preserves candidate comparison information in the machine-readable report together with a best-pipeline bundle and the final best-model artifact. This means the result of the experiment is reproducible, downloadable, and reusable for later demonstrations.",
         "The interface therefore performs a documentary role in addition to a control role. It becomes the visible surface through which the project's architecture, progress management, and reuse model can be demonstrated to a reader or examiner. That visibility is valuable because it links software design decisions to observable behaviour rather than leaving them buried only in backend code.",
         "Similarly, the downloadable outputs extend the life of the experiment beyond the moment of training. Reviewers can inspect the generated files, cross-check the report, and treat the project as a persistent system rather than a one-session demonstration.",
         "This interface-centered result is especially relevant in an academic project because demonstration quality matters alongside technical correctness. A system that can be understood, navigated, and reused through clear pages and outputs is easier to evaluate and more valuable for future student cohorts."
     ])
-    add_heading(doc, "4.7 Discussion of Results", 2)
+    add_heading(doc, "5.7 Discussion of Results", 2)
     add_long_paragraphs(doc, [
         "The results demonstrate that bounded neural architecture search can be applied meaningfully to tabular medical prediction without requiring large-scale infrastructure.",
         "A major strength of the project is its full integration of preprocessing, training, monitoring, storage, and prediction inside one workflow.",
@@ -810,7 +884,7 @@ def generate_project_report() -> None:
         "The saved best model also has value beyond its own metric values. It proves that the system can complete the entire path from data upload through preprocessing, architecture search, ranking, persistence, and prediction reuse. In many student projects, the workflow breaks at one of these transitions: preprocessing is not reusable, model metadata is lost, or inference cannot be reproduced reliably. The present result suggests that these transitions have been handled with enough care to support a believable end-to-end application narrative.",
         "Finally, the results have educational value precisely because they are modest and interpretable. The project does not rely on spectacular benchmark claims to justify itself. Instead, it shows that a bounded NAS workflow can be implemented responsibly, that its outputs can be stored and explained, and that its best model can be defended through a clear selection rationale. This kind of measured success is often more useful in an academic project report than exaggerated claims that are difficult to verify or reproduce."
     ])
-    add_heading(doc, "4.8 Limitations of the System", 2)
+    add_heading(doc, "5.8 Limitations of the System", 2)
     add_bullets(doc, [
         "The project is limited to tabular dense-network search.",
         "The search space is intentionally narrow for practical runtime reasons.",
@@ -826,19 +900,19 @@ def generate_project_report() -> None:
     ])
 
     doc.add_page_break()
-    add_heading(doc, "CHAPTER 5: CONCLUSION AND FUTURE SCOPE", 1)
-    add_heading(doc, "5.1 Conclusion", 2)
+    add_heading(doc, "CHAPTER 6: CONCLUSION AND FUTURE SCOPE", 1)
+    add_heading(doc, "6.1 Conclusion", 2)
     add_long_paragraphs(doc, [
         f"{PROJECT_TITLE} demonstrates that neural architecture search for tabular medical prediction can be implemented as a practical software system. The project unifies data preparation, candidate generation, training, evaluation, artifact persistence, and prediction support in one workflow.",
         "The project is especially valuable in academic settings because it connects theoretical NAS ideas to a usable end-to-end application.",
         "The completed implementation shows that automation in model design need not be isolated from software engineering discipline. By preserving preprocessing, storing candidate artifacts, streaming progress, and reusing the chosen model for prediction, the system demonstrates a full lifecycle from dataset upload to inference.",
         "The project therefore succeeds on two levels. At the machine learning level it produces and evaluates alternative neural architectures for a tabular classification task. At the system level it packages that capability inside a coherent Flask application whose behaviour can be observed, documented, and reused.",
         "The conclusion that emerges from the completed work is not merely that NAS can function on tabular data. It is that a small but thoughtfully engineered NAS application can serve as a bridge between machine learning methodology, software engineering practice, and academic documentation requirements. This integrated success is the defining contribution of the project.",
-        "The saved artifacts and report evidence also confirm that the project produces inspectable outcomes rather than abstract promises. The selected model, the preserved preprocessing bundle, the candidate files, and the final training report collectively show that the system moved from design intent to measurable execution.",
+        "The saved artifacts and report evidence also confirm that the project produces inspectable outcomes rather than abstract promises. The selected model, the preserved preprocessing bundle, the candidate-level report data, and the final training report collectively show that the system moved from design intent to measurable execution.",
         "The strongest final conclusion is therefore one of successful integration. The project does not leave its main ideas scattered across disconnected artifacts. It brings them together into a coherent platform where the technical workflow, the interface workflow, and the documentation workflow all reinforce one another.",
         "This makes the project particularly suitable for academic evaluation because it can be defended from several angles at once: algorithm design, preprocessing rigor, software architecture, interface clarity, and artifact-based reproducibility. Few small projects make all of those dimensions visible in one coherent submission."
     ])
-    add_heading(doc, "5.2 Achievements of the Project", 2)
+    add_heading(doc, "6.2 Achievements of the Project", 2)
     add_report_table(doc, ["Achievement Area", "Description"], [
         ["Data Pipeline", "Implemented preprocessing, task detection, and feature schema generation"],
         ["Model Search", "Implemented random, evolutionary, and progressive NAS flows"],
@@ -847,12 +921,12 @@ def generate_project_report() -> None:
     ])
     add_long_paragraphs(doc, [
         "These achievements are not isolated checklist items; they form a connected software ecosystem. The data pipeline feeds the NAS engine, the NAS engine feeds the reporting layer, and the reporting layer feeds both academic documentation and later prediction workflows.",
-        "A significant achievement is that the project preserves verifiable outputs. The saved report, the best pipeline bundle, and the candidate model files provide objective evidence that the workflow executed and that the best-model decision can be traced to specific artifacts.",
+        "A significant achievement is that the project preserves verifiable outputs. The saved report, the best pipeline bundle, the best-model artifact, and the candidate-level comparison data provide objective evidence that the workflow executed and that the best-model decision can be traced to specific artifacts.",
         "Another achievement is conceptual clarity. The project makes it possible to explain each stage of the workflow in a way that maps directly to code and outputs. This clarity is especially useful in academic assessment, where a strong project is judged not only by what it does but also by how transparently it can be justified.",
         "The project also achieves a useful compromise between ambition and feasibility. It adopts the important idea of automated architecture search without depending on expensive training infrastructure or overly complex experimental protocols. This balance is one of the reasons the implementation is well suited to a student project environment.",
         "These achievements also indicate that the project can serve as a starting point for later teams. Because the architecture, saved outputs, and documentation are aligned, subsequent development can build on a stable base instead of reverse-engineering undocumented decisions."
     ])
-    add_heading(doc, "5.3 Limitations", 2)
+    add_heading(doc, "6.3 Limitations", 2)
     add_long_paragraphs(doc, [
         "The project does not currently include advanced explainability features, GPU cluster support, user authentication, or deployment-grade medical compliance controls.",
         "It also does not yet provide broad experiment management features such as multi-run comparison dashboards, persistent user accounts, audit logging, or configurable cross-validation studies. These omissions are acceptable for a focused academic prototype but should be recognized when positioning the system against industrial AutoML platforms.",
@@ -861,7 +935,7 @@ def generate_project_report() -> None:
         "Finally, the project remains a prototype with a single-user execution mindset. Concurrency safeguards exist, but the broader concerns of multi-user deployment, quota management, secure model isolation, and auditability would need further engineering in a production-oriented continuation.",
         "These limitations do not weaken the project's academic value; instead, they help locate it accurately within the prototype-to-product spectrum. A strong report should not hide what the system does not yet solve. By stating these constraints openly, the project strengthens its credibility and prepares a clear agenda for future improvement."
     ])
-    add_heading(doc, "5.4 Future Scope", 2)
+    add_heading(doc, "6.4 Future Scope", 2)
     add_bullets(doc, [
         "Expand the search space with more regularization and topology options.",
         "Add explainability and calibration outputs.",
