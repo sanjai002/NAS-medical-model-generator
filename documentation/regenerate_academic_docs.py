@@ -178,20 +178,22 @@ def generate_project_report() -> None:
         if models else 0.0
     )
 
-    doc = new_document("Project Report", f"{PROJECT_TITLE} – {FORMAL_SUBTITLE}")
+    report_title = "NAS Heart Disease Model Generator"
+    report_subtitle = "Neural Architecture Search Based Heart Disease Prediction System"
+    doc = new_document("Project Report", f"{report_title} – {report_subtitle}")
 
     add_heading(doc, "ACKNOWLEDGEMENT", 1)
     add_long_paragraphs(doc, [
         "This report has been prepared by studying the actual implementation files, generated artifacts, interface templates, and literature notes available in the workspace. The goal of the report is to present the project in a professional but simple academic form without introducing invented claims.",
         "Gratitude is extended to the faculty guidance, academic reviewers, and the open-source software ecosystem that supported the development of this project. The practical availability of Flask, TensorFlow/Keras, Pandas, NumPy, scikit-learn, and python-docx made it possible to build both the software and its supporting documentation.",
-        "The project also benefited from prior research studies in healthcare prediction and neural architecture search. Those studies helped shape the literature survey and guided the design decisions documented in the following chapters."
+        "The project also benefited from prior research studies in heart disease prediction and neural architecture search. Those studies helped shape the literature survey and guided the design decisions documented in the following chapters."
     ])
 
     add_heading(doc, "ABSTRACT", 1)
     add_long_paragraphs(doc, [
-        f"{PROJECT_TITLE} is a web-based machine learning application developed to automate neural architecture search for tabular medical datasets. The system integrates a Flask interface, a preprocessing pipeline, and a TensorFlow/Keras training engine to create a practical end-to-end workflow from dataset upload to prediction.",
+        f"{report_title} is a web-based machine learning application developed to automate neural architecture search for tabular heart disease datasets. The system integrates a Flask interface, a preprocessing pipeline, and a TensorFlow/Keras training engine to create a practical end-to-end workflow from dataset upload to heart disease prediction.",
         "The project supports CSV and Excel file input, automatic task detection, preprocessing of numeric and categorical data, bounded generation of candidate dense neural networks, real-time progress reporting using Server-Sent Events, and persistent storage of learned artifacts for later inference.",
-        f"The current saved workspace run corresponds to a {task_type} problem with {len(models)} candidate models. The best saved candidate is Candidate {best.get('candidate', 'N/A')} with architecture {best.get('architecture', {})}, validation metric {metric_percent(best.get('val_metric')) if task_type == 'classification' else best.get('val_metric')}, test accuracy {metric_percent(best.get('final_accuracy'))}, and {best.get('total_params', 'N/A')} trainable parameters. The project demonstrates that a controlled NAS workflow can be implemented as a usable academic software system for medical-style tabular prediction."
+        f"The current saved workspace run corresponds to a {task_type} heart disease prediction problem with {len(models)} candidate models. The best saved candidate is Candidate {best.get('candidate', 'N/A')} with architecture {best.get('architecture', {})}, validation metric {metric_percent(best.get('val_metric')) if task_type == 'classification' else best.get('val_metric')}, test accuracy {metric_percent(best.get('final_accuracy'))}, and {best.get('total_params', 'N/A')} trainable parameters. The project demonstrates that a controlled NAS workflow can be implemented as a usable academic software system for heart disease prediction on tabular data."
     ])
     doc.add_page_break()
 
@@ -305,7 +307,7 @@ def generate_project_report() -> None:
     add_heading(doc, "CHAPTER 1: INTRODUCTION", 1)
     add_heading(doc, "1.1 Motivation", 2)
     add_long_paragraphs(doc, [
-        "Healthcare prediction tasks frequently depend on tabular datasets that contain a mix of demographic information, diagnostic indicators, laboratory measurements, and outcome labels. Such datasets are well suited for supervised learning, but selecting the best neural architecture for them is not straightforward.",
+        "Heart disease prediction tasks frequently depend on tabular datasets that contain a mix of demographic information, diagnostic indicators, laboratory measurements, and outcome labels. Such datasets are well suited for supervised learning, but selecting the best neural architecture for them is not straightforward.",
         "This project is motivated by the need to reduce manual trial-and-error in model design. Instead of asking a user to manually choose layer depth, hidden units, and activation functions repeatedly, the system explores these configurations automatically within a safe bounded search space.",
         "A second motivation is accessibility. By offering a browser-based workflow, the project helps students and evaluators observe how preprocessing, architecture search, training, reporting, and prediction are connected in a full software system.",
         "A third motivation is reproducibility. In academic machine learning work, promising results are often difficult to reproduce because preprocessing, label handling, train-validation-test splitting, and model configuration are scattered across notebooks or temporary scripts. The present project keeps those stages together in one controlled workflow and persists the resulting artifacts in the uploads directory for future verification.",
@@ -314,7 +316,7 @@ def generate_project_report() -> None:
     ])
     add_heading(doc, "1.2 Problem Statement", 2)
     add_long_paragraphs(doc, [
-        "Neural architecture design for tabular medical prediction is often fragmented across multiple scripts and manual decisions. In many small projects, preprocessing logic, model training, evaluation, and prediction are not kept together in a reproducible manner.",
+        "Neural architecture design for tabular heart disease prediction is often fragmented across multiple scripts and manual decisions. In many small projects, preprocessing logic, model training, evaluation, and prediction are not kept together in a reproducible manner.",
         "When the same preprocessing steps are not preserved exactly between training and inference, predictions on new inputs can become unreliable. Similarly, when candidate architectures are tested manually, comparison becomes difficult and time-consuming.",
         "The problem addressed by this project is the absence of a simple but integrated software platform that accepts real tabular data, preprocesses it consistently, performs bounded neural architecture search, saves artifacts, and supports prediction through a user interface.",
         "A related problem is the disconnect between model selection and deployment readiness in student projects. Even when a strong model is discovered, the absence of a saved preprocessor, target encoding logic, and input schema means the model cannot be applied safely to new records. The proposed system treats deployment-oriented concerns such as artifact persistence and input validation as part of the core design instead of an afterthought.",
@@ -322,7 +324,7 @@ def generate_project_report() -> None:
     ])
     add_heading(doc, "1.3 Objectives", 2)
     add_numbered(doc, [
-        "To build a web-based NAS workflow for tabular medical datasets.",
+        "To build a web-based NAS workflow for tabular heart disease datasets.",
         "To support CSV and Excel dataset formats.",
         "To detect classification and regression tasks automatically.",
         "To implement random, evolutionary, and progressive search strategies.",
@@ -362,7 +364,7 @@ def generate_project_report() -> None:
         "Schema-driven prediction interface",
     ])
     add_long_paragraphs(doc, [
-        "Each feature contributes to a unified learning experience. File-format flexibility lowers entry barriers for users who may have exported data from spreadsheets or medical records systems. Automatic task detection reduces configuration errors when labels are stored numerically. The combination of multiple search strategies allows the same application to demonstrate different NAS philosophies without changing the surrounding workflow.",
+        "Each feature contributes to a unified learning experience. File-format flexibility lowers entry barriers for users who may have exported heart disease records from spreadsheets or similar structured data sources. Automatic task detection reduces configuration errors when labels are stored numerically. The combination of multiple search strategies allows the same application to demonstrate different NAS philosophies without changing the surrounding workflow.",
         "The progress-streaming feature is especially important in a web-based academic tool because model training is no longer a black box. Users can see that work is proceeding, observe candidate-level updates, and connect system design choices with runtime behavior. The dynamic prediction schema likewise improves usability by generating input fields from the saved training metadata instead of relying on hard-coded forms.",
         "Another practical feature is the system's artifact-centered workflow. The user is not left with a temporary result displayed on the screen; instead, the software persists the selected model, the candidate models, the preprocessing bundle, and the machine-readable training report. This approach supports later verification, demonstration, and reuse, which are all important in an academic project review setting.",
         "The feature set also reveals a deliberate balance between flexibility and safety. The user can influence the search mode and related settings, but the backend still clamps unsafe values and protects the system from unrealistic model sizes. In this way, the software is not simply permissive; it is intentionally guided toward configurations that fit the project's educational and operational constraints."
@@ -376,23 +378,23 @@ def generate_project_report() -> None:
         "Another advantage is traceability. Because the training output is summarized in a structured JSON file and linked to downloadable artifacts, the basis for selecting the best model remains transparent. This is a stronger academic position than reporting a final accuracy value without preserving how that value was produced.",
         "The final advantage is practicality. Even though advanced NAS literature often assumes expensive hardware, the present implementation shows that a bounded search strategy can still deliver educational and functional value on a small system using CPU-friendly settings.",
         "There is also an advantage in pedagogical clarity. Because the system keeps its major operations visible through routes, saved files, and predictable module boundaries, it becomes easier for a reviewer to understand how a dataset moves from upload to preprocessing, from preprocessing to model search, and from search to prediction. Many academic projects produce results, but fewer make the complete reasoning chain easy to inspect.",
-        "A further advantage lies in the system's adaptability. Although the motivating use case is medical tabular prediction, the design does not hard-code a single disease label or a fixed column set. The same workflow can be reused for similar structured datasets with minimal adjustment, making the project a reusable academic platform rather than a one-dataset script."
+        "A further advantage lies in the system's adaptability. Although the motivating use case is heart disease tabular prediction, the design does not hard-code only one narrow file layout or one fixed column order. The same workflow can still be reused for similar structured heart disease datasets with minimal adjustment, making the project a reusable academic platform rather than a one-dataset script."
     ])
 
     doc.add_page_break()
     add_heading(doc, "CHAPTER 2: LITERATURE SURVEY", 1)
     add_heading(doc, "2.1 Introduction", 2)
     add_long_paragraphs(doc, [
-        "The literature survey for this project spans healthcare prediction studies and neural architecture search research. Healthcare studies provide domain relevance and demonstrate how structured medical datasets are used in predictive modeling. NAS studies provide the methodological basis for automated architecture exploration.",
-        "Together, these two literature streams justify the design of a bounded, tabular-data-focused NAS system intended for healthcare-style prediction workflows."
+        "The literature survey for this project spans heart disease prediction studies and neural architecture search research. Heart disease studies provide domain relevance and demonstrate how structured tabular datasets are used in predictive modeling. NAS studies provide the methodological basis for automated architecture exploration.",
+        "Together, these two literature streams justify the design of a bounded, tabular-data-focused NAS system intended for heart disease prediction workflows."
     ])
     add_heading(doc, "2.2 Existing Systems", 2)
     selected_papers = papers[:16]
-    add_paragraph(doc, "This section uses a compact review of all sixteen summarized studies collected for the project so that the chapter covers the complete literature set while remaining focused on the most relevant ideas for tabular healthcare prediction and neural architecture search.")
+    add_paragraph(doc, "This section uses a compact review of all sixteen summarized studies collected for the project so that the chapter covers the complete literature set while remaining focused on the most relevant ideas for tabular heart disease prediction and neural architecture search.")
     for index, paper in enumerate(selected_papers, start=1):
         title = paper.get('title', f'Paper {index}')
         title_lower = title.lower()
-        focus = "Healthcare prediction" if "heart" in title_lower or "disease" in title_lower or "medical" in title_lower else "NAS / AutoML"
+        focus = "Heart disease prediction" if "heart" in title_lower or "disease" in title_lower or "medical" in title_lower else "NAS / AutoML"
         add_heading(doc, f"2.2.{index} {title}", 3)
         add_paragraph(
             doc,
@@ -404,26 +406,26 @@ def generate_project_report() -> None:
         comparative_rows.append([
             paper.get("title", "Paper")[:32],
             paper.get("year", "NA"),
-            "Healthcare" if "heart" in paper.get("title", "").lower() else "NAS/AutoML",
+            "Heart Disease" if "heart" in paper.get("title", "").lower() else "NAS/AutoML",
             paper.get("results", "Not specified")[:36],
             "High",
         ])
     add_report_table(doc, ["Paper", "Year", "Category", "Key Result", "Relevance"], comparative_rows)
     add_long_paragraphs(doc, [
-        "The compact comparison shows a clear divide between domain-oriented healthcare prediction studies and methodology-oriented NAS or AutoML studies. Healthcare papers provide problem relevance and common benchmark framing, whereas NAS papers explain how search strategy, search space, and computational cost affect automated architecture selection.",
-        "The proposed project sits between these two streams. It adopts the practical medical motivation of structured disease prediction while borrowing the search-oriented thinking of NAS research. This hybrid position explains why the project focuses on a compact search space, consistent preprocessing, and artifact-preserving execution rather than on very large benchmark-driven experimentation."
+        "The compact comparison shows a clear divide between domain-oriented heart disease prediction studies and methodology-oriented NAS or AutoML studies. Heart disease papers provide problem relevance and common benchmark framing, whereas NAS papers explain how search strategy, search space, and computational cost affect automated architecture selection.",
+        "The proposed project sits between these two streams. It adopts the practical heart disease prediction motivation of structured disease classification while borrowing the search-oriented thinking of NAS research. This hybrid position explains why the project focuses on a compact search space, consistent preprocessing, and artifact-preserving execution rather than on very large benchmark-driven experimentation."
     ])
     add_heading(doc, "2.4 Research Gaps Identified", 2)
     add_long_paragraphs(doc, [
-        "Many healthcare prediction studies use fixed model families chosen manually and do not automate architecture exploration.",
-        "Many NAS studies focus on image benchmarks and assume higher computational resources than a lightweight tabular medical workflow requires.",
+        "Many heart disease prediction studies use fixed model families chosen manually and do not automate architecture exploration.",
+        "Many NAS studies focus on image benchmarks and assume higher computational resources than a lightweight tabular heart disease workflow requires.",
         "The literature also shows a gap between algorithm-focused research and reusable software systems. Even strong studies do not always preserve preprocessing, trained artifacts, and inference metadata in a way that supports later demonstration and prediction reuse.",
         "The project addresses these gaps by integrating tabular preprocessing, bounded architecture search, result tracking, and prediction support in one practical application."
     ])
     add_heading(doc, "2.5 Summary", 2)
     add_long_paragraphs(doc, [
-        "The literature supports the need for a project that combines the practical relevance of healthcare prediction with the automation benefits of NAS. The proposed system is designed as that bridge.",
-        "By limiting the review to the most representative studies, the chapter remains focused on the ideas that matter most for this project: tabular medical relevance, compact model design, resource-aware search, and the value of preserving artifacts for later use."
+        "The literature supports the need for a project that combines the practical relevance of heart disease prediction with the automation benefits of NAS. The proposed system is designed as that bridge.",
+        "By limiting the review to the most representative studies, the chapter remains focused on the ideas that matter most for this project: tabular heart disease relevance, compact model design, resource-aware search, and the value of preserving artifacts for later use."
     ])
 
     doc.add_page_break()
@@ -461,7 +463,7 @@ def generate_project_report() -> None:
     ])
     add_long_paragraphs(doc, [
         "The sequence of preprocessing operations is not arbitrary. Imputation occurs before scaling and encoding because the downstream transformations require complete input values. The structured ordering of these steps within a scikit-learn pipeline prevents accidental inconsistency between training and prediction time, which is one of the common failure points in small machine learning projects.",
-        "The preprocessing design also reflects a principle of practical robustness. Medical-style datasets often contain missing values, mixed measurement scales, and categorical indicators. By explicitly separating numeric and categorical pathways, the system avoids the error of applying a single generic transformation to fundamentally different data types.",
+        "The preprocessing design also reflects a principle of practical robustness. Heart disease datasets often contain missing values, mixed measurement scales, and categorical indicators. By explicitly separating numeric and categorical pathways, the system avoids the error of applying a single generic transformation to fundamentally different data types.",
         "Another benefit of the chosen preprocessing pipeline is reusability. Once fitted, the transformer becomes a portable representation of the exact feature engineering used in training. This makes the project stronger than a script that computes temporary transformations ad hoc and then loses the mapping needed for later inference."
     ])
     add_heading(doc, "3.1.3 Feature Schema Generation", 3)
@@ -760,9 +762,9 @@ def generate_project_report() -> None:
     ])
     add_heading(doc, "5.2 Dataset Description", 2)
     add_long_paragraphs(doc, [
-        "The project is designed for mixed-type tabular medical datasets. The preprocessing logic assumes a final target column and feature columns before it.",
+        "The project is designed for mixed-type tabular heart disease datasets. The preprocessing logic assumes a final target column and feature columns before it.",
         "The literature notes repeatedly reference heart-disease prediction data, which serves as the motivating academic problem domain for the system.",
-        "The preprocessing code is generic enough to support numeric and categorical fields together, which is important because many medical tables combine laboratory values with symbolic descriptors or yes/no indicators. This mixed-data assumption is visible in the separate imputation and transformation pipelines.",
+        "The preprocessing code is generic enough to support numeric and categorical fields together, which is important because many heart disease tables combine laboratory values with symbolic descriptors or yes/no indicators. This mixed-data assumption is visible in the separate imputation and transformation pipelines.",
         "Although the saved run report does not embed the full raw dataset, the project evidence strongly suggests a heart-disease-style binary classification use case. This interpretation is consistent with the uploaded file name, the literature survey sources, and the classification metrics stored in the generated report.",
         "This kind of dataset is a suitable target for the project's design because it is structured, moderate in scale, and likely to contain a mixture of physiological and categorical indicators. Such conditions reward careful preprocessing and measured model selection rather than excessive architectural complexity.",
         "The dataset discussion also highlights a practical limitation that the project handles reasonably well: the absence of embedded domain semantics in the code. The system does not hard-code disease-specific feature names, but instead relies on generic tabular processing. This increases reuse while still allowing domain-motivated interpretation in the report."
@@ -853,9 +855,9 @@ def generate_project_report() -> None:
     ])
     add_heading(doc, "5.7 Discussion of Results", 2)
     add_long_paragraphs(doc, [
-        "The results demonstrate that bounded neural architecture search can be applied meaningfully to tabular medical prediction without requiring large-scale infrastructure.",
+        "The results demonstrate that bounded neural architecture search can be applied meaningfully to tabular heart disease prediction without requiring large-scale infrastructure.",
         "A major strength of the project is its full integration of preprocessing, training, monitoring, storage, and prediction inside one workflow.",
-        "The current run does not claim to surpass the strongest manually engineered medical prediction systems reported in the literature. Instead, its significance lies in showing that automated architecture comparison can be embedded in a user-facing application while preserving methodological discipline. In that sense, the project's main contribution is systems integration grounded in legitimate machine learning practice.",
+        "The current run does not claim to surpass the strongest manually engineered heart disease prediction systems reported in the literature. Instead, its significance lies in showing that automated architecture comparison can be embedded in a user-facing application while preserving methodological discipline. In that sense, the project's main contribution is systems integration grounded in legitimate machine learning practice.",
         "The results also support a practical lesson: for tabular structured data, compact networks can be highly competitive. This aligns with broader observations that massive depth is not always necessary for table-based prediction tasks, especially when preprocessing is strong and the dataset is moderate in size.",
         "Another discussion point concerns the choice of search metric. Because the project uses validation performance for model selection, the reported best model is stable with respect to the stated methodology. This is preferable to choosing a candidate based only on final test accuracy after viewing all results, which would weaken the credibility of the evaluation.",
         "The discussion also highlights the importance of software embodiment. Many projects describe a promising machine learning idea but stop short of integrating it into a maintainable and demonstrable application. Here, the results are inseparable from the system that produced them: the backend, preprocessing pipeline, search engine, persistence logic, and prediction interface all contribute to the final value of the project.",
@@ -894,7 +896,7 @@ def generate_project_report() -> None:
     add_long_paragraphs(doc, [
         "These limitations should be interpreted carefully. A narrow search space reduces the chance of discovering unconventional high-performing structures, yet it also keeps the system explainable and fast enough for classroom use. Similarly, the absence of hospital-grade controls does not reduce the project's value as a prototype; it simply defines the maturity level of the software.",
         "Another limitation is the dependence on the last-column target convention. While practical, this assumption requires the dataset to be prepared in a conventional tabular form. A future production-oriented version would likely include explicit target selection and stronger validation around schema semantics.",
-        "Finally, evaluation remains tied to the available saved run artifacts. More extensive experiments across multiple medical datasets, repeated random seeds, and confusion-matrix-style diagnostics would strengthen the empirical claims that future versions of the report can make.",
+        "Finally, evaluation remains tied to the available saved run artifacts. More extensive experiments across multiple heart disease datasets, repeated random seeds, and confusion-matrix-style diagnostics would strengthen the empirical claims that future versions of the report can make.",
         "A further limitation is that the current visualization emphasis is textual and tabular rather than graph-heavy. While this is acceptable for a document-focused academic submission, richer visual analytics would improve accessibility for readers who prefer curve-based or dashboard-based interpretation of candidate behaviour.",
         "There is also a scope limitation in user interaction design. The system supports a clear training and prediction workflow, but it does not yet provide deeper experiment-management capabilities such as comparing historical runs, annotating experiments, or switching between multiple saved best pipelines from the interface."
     ])
@@ -903,7 +905,7 @@ def generate_project_report() -> None:
     add_heading(doc, "CHAPTER 6: CONCLUSION AND FUTURE SCOPE", 1)
     add_heading(doc, "6.1 Conclusion", 2)
     add_long_paragraphs(doc, [
-        f"{PROJECT_TITLE} demonstrates that neural architecture search for tabular medical prediction can be implemented as a practical software system. The project unifies data preparation, candidate generation, training, evaluation, artifact persistence, and prediction support in one workflow.",
+        f"{report_title} demonstrates that neural architecture search for tabular heart disease prediction can be implemented as a practical software system. The project unifies data preparation, candidate generation, training, evaluation, artifact persistence, and prediction support in one workflow.",
         "The project is especially valuable in academic settings because it connects theoretical NAS ideas to a usable end-to-end application.",
         "The completed implementation shows that automation in model design need not be isolated from software engineering discipline. By preserving preprocessing, storing candidate artifacts, streaming progress, and reusing the chosen model for prediction, the system demonstrates a full lifecycle from dataset upload to inference.",
         "The project therefore succeeds on two levels. At the machine learning level it produces and evaluates alternative neural architectures for a tabular classification task. At the system level it packages that capability inside a coherent Flask application whose behaviour can be observed, documented, and reused.",
@@ -928,7 +930,7 @@ def generate_project_report() -> None:
     ])
     add_heading(doc, "6.3 Limitations", 2)
     add_long_paragraphs(doc, [
-        "The project does not currently include advanced explainability features, GPU cluster support, user authentication, or deployment-grade medical compliance controls.",
+        "The project does not currently include advanced explainability features, GPU cluster support, user authentication, or deployment-grade clinical compliance controls.",
         "It also does not yet provide broad experiment management features such as multi-run comparison dashboards, persistent user accounts, audit logging, or configurable cross-validation studies. These omissions are acceptable for a focused academic prototype but should be recognized when positioning the system against industrial AutoML platforms.",
         "Another limitation is that the present report is grounded in the artifacts of the current workspace run. While this makes the document accurate and reproducible, it also means broader empirical generalization requires more saved experiments across additional datasets and parameter settings.",
         "There is also a limitation in how operational analytics are presented to the reader. The system preserves essential metrics, but it does not yet offer a wider set of automatically generated analytical summaries such as confusion matrices, class-wise precision and recall, or probability calibration curves for classification tasks.",
@@ -946,7 +948,7 @@ def generate_project_report() -> None:
     add_long_paragraphs(doc, [
         "Future work can deepen both the machine learning and the software dimensions of the project. On the search side, dropout, batch normalization, residual-style tabular blocks, and wider activation choices could provide a richer architecture space. On the evaluation side, confusion matrices, ROC analysis, calibration checks, and repeated trials would improve scientific depth.",
         "From a systems perspective, future scope includes user authentication, saved experiment histories, administrative dashboards, and richer visualization of candidate training curves. Those extensions would make the application more suitable for repeated departmental use.",
-        "Another promising direction is the integration of explainability. Because medical prediction applications benefit from transparency, a later version could expose feature attributions, local explanation summaries, or confidence diagnostics together with the final prediction output.",
+        "Another promising direction is the integration of explainability. Because heart disease prediction applications benefit from transparency, a later version could expose feature attributions, local explanation summaries, or confidence diagnostics together with the final prediction output.",
         "Finally, the project can evolve toward a more configurable educational AutoML laboratory. By allowing users to control additional search parameters, compare strategies side by side, and export richer reports, the same foundation could support deeper coursework, student mini-projects, and future research exploration.",
         "A particularly valuable future direction would be the addition of experiment reproducibility controls such as fixed-seed run tracking, side-by-side run comparison, and archived metadata snapshots. These features would strengthen the project as both a teaching tool and a small-scale research support platform.",
         "Another future path is closer integration with documentation generation itself. Since the project already saves structured reports and artifacts, a later version could automatically generate richer evidence sections, candidate comparison charts, and update-ready academic summaries from each completed run.",
@@ -961,7 +963,7 @@ def generate_project_report() -> None:
         "The most important future insight is that the project has already solved the hardest integration problem: connecting upload, preprocessing, search, evaluation, storage, and prediction into one coherent workflow. Because that foundation exists, later extensions can focus on depth rather than rebuilding the system from scratch. This gives the project strong long-term value as a platform for continued development.",
         "In other words, the current system should be viewed as a capable baseline platform. Its immediate contribution is a complete academic prototype, but its longer-term contribution is the availability of a reusable structure on which richer analysis, deployment, and teaching features can be layered systematically.",
         "A valuable next step would be to make experimentation itself a first-class object in the interface. Rather than treating each run as a separate event that is remembered informally, future versions could preserve named experiment sessions, configuration snapshots, metric summaries, and candidate comparisons across time. This would make the software not only a training tool but also a lightweight experiment-management environment suitable for classroom and mini-project usage.",
-        "Future scope can also deepen methodological rigor by supporting more flexible evaluation procedures. For example, repeated train-validation-test cycles, user-selectable random seeds, and cross-validation-inspired summary reporting would help quantify the stability of the selected model. These changes would be especially useful if the platform is later applied to multiple medical datasets, where robustness across runs matters as much as peak performance in any single run.",
+        "Future scope can also deepen methodological rigor by supporting more flexible evaluation procedures. For example, repeated train-validation-test cycles, user-selectable random seeds, and cross-validation-inspired summary reporting would help quantify the stability of the selected model. These changes would be especially useful if the platform is later applied to multiple heart disease datasets, where robustness across runs matters as much as peak performance in any single run.",
         "The prediction module offers another rich avenue for extension. At present it successfully reuses the stored pipeline and model, which is already a major achievement for a prototype. Future versions could build on this by adding richer output narratives, probability calibration displays, confidence threshold options, and clearer input guidance derived from the feature schema. Such improvements would make the system more informative for end users while remaining faithful to the current architectural pattern.",
         "From a software engineering perspective, the project could also evolve toward a more maintainable product ecosystem. Automated tests around preprocessing, report generation, route behavior, and prediction consistency would make future modifications safer. Versioned artifact management could ensure that older reports and models remain accessible even after new runs are added. These changes would strengthen reliability without requiring a fundamental redesign.",
         "Longer term, the platform could become an institutional teaching asset. Faculty could use it to demonstrate the full lifecycle of a structured-data ML project, students could compare search strategies in a controlled environment, and project teams could generate consistent documentation backed by real artifacts. In that scenario, the value of the current prototype extends beyond its own immediate results: it becomes the seed of a reusable educational and experimental infrastructure."
@@ -977,7 +979,7 @@ def generate_project_report() -> None:
         "The future-oriented view of the project is therefore both practical and strategic. Practically, the next improvements are clear: richer evaluation, better experiment management, stronger explainability, and more structured deployment support. Strategically, the project already possesses the most important asset required for those improvements—a coherent baseline architecture in which data preparation, model search, reporting, and prediction are already connected. Because that foundation is in place, the path to a stronger next version is incremental rather than disruptive.",
         "This final point matters in an academic context because it shows that the project has continuity. It is not a one-time exercise whose value ends with the current report. Instead, it is a reusable framework that can support future student work, more rigorous experiments, and richer documentation. That continuity gives the current implementation a stronger educational significance than a prototype that solves only a narrow isolated task.",
         "A final strategic observation is that the project already demonstrates the rare combination of machine learning workflow completeness and documentation readiness. Many prototypes can train a model, and many reports can describe a workflow in abstract terms, but fewer systems can do both in a coordinated manner. Here, the workflow produces saved models, a saved preprocessing bundle, a machine-readable report, and a user-facing prediction interface, all of which reinforce the written academic narrative. This makes the project more durable as a departmental reference point because future contributors can inherit not just code, but also a working pattern for how code, artifacts, and documentation should relate.",
-        "For that reason, the long-term importance of the current implementation should not be judged only by the numerical performance of a single run. Its broader contribution is infrastructural. It shows how a bounded NAS system for tabular medical prediction can be organized so that experiments are observable, outputs are preserved, and conclusions remain defensible. Future teams may improve metrics, broaden datasets, or modernize the interface, but they will be doing so on top of an already coherent foundation. In academic project work, that kind of reusable structure is itself a significant achievement because it turns one successful submission into a platform for later learning and experimentation."
+        "For that reason, the long-term importance of the current implementation should not be judged only by the numerical performance of a single run. Its broader contribution is infrastructural. It shows how a bounded NAS system for tabular heart disease prediction can be organized so that experiments are observable, outputs are preserved, and conclusions remain defensible. Future teams may improve metrics, broaden datasets, or modernize the interface, but they will be doing so on top of an already coherent foundation. In academic project work, that kind of reusable structure is itself a significant achievement because it turns one successful submission into a platform for later learning and experimentation."
     ])
 
     doc.add_page_break()
