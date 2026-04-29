@@ -74,6 +74,7 @@ from typing import Any, Callable
 
 # NumPy – infinity value (np.inf) and norm calculation (np.linalg.norm).
 import numpy as np
+from sklearn.metrics import classification_report, confusion_matrix
 
 # TensorFlow / Keras – builds and trains the neural network models.
 import tensorflow as tf
@@ -159,6 +160,9 @@ class CandidateResult:
     training_time: float
     optimizer: str
     learning_rate: float
+    confusion_matrix: list[list[int]] | None = None
+    classification_report: dict[str, Any] | None = None
+    class_labels: list[str] | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -556,6 +560,28 @@ def _compile_model(model: tf.keras.Model, task: str):
         )
 
 
+def _candidate_result_payload(result: CandidateResult) -> dict[str, Any]:
+    """Build the SSE/UI payload for one finished candidate."""
+    return {
+        "candidate": result.candidate_id,
+        "architecture": result.architecture,
+        "layer_names": result.layer_names,
+        "activations": result.activations,
+        "final_accuracy": result.final_accuracy,
+        "final_mse": result.final_mse,
+        "final_loss": result.final_loss,
+        "final_metric": result.final_metric,
+        "val_metric": result.val_metric,
+        "total_params": result.total_params,
+        "optimizer": result.optimizer,
+        "learning_rate": result.learning_rate,
+        "training_time": result.training_time,
+        "confusion_matrix": result.confusion_matrix,
+        "classification_report": result.classification_report,
+        "class_labels": result.class_labels,
+    }
+
+
 # ---------------------------------------------------------------------------
 # Core candidate training function
 # ---------------------------------------------------------------------------
@@ -719,12 +745,29 @@ def _fit_candidate(
             final_mse = None                    # Not applicable for classification
             # val_perf is validation accuracy – used for ranking candidates.
             val_perf = val_metric
+
+            raw_preds = model.predict(test_ds, verbose=0)
+            y_true = np.argmax(data.y_test, axis=1)
+            y_pred = np.argmax(raw_preds, axis=1)
+            class_labels = [str(cls) for cls in (data.label_encoder.classes_ if data.label_encoder is not None else range(data.output_dim))]
+            cm = confusion_matrix(y_true, y_pred, labels=list(range(len(class_labels))))
+            cls_report = classification_report(
+                y_true,
+                y_pred,
+                labels=list(range(len(class_labels))),
+                target_names=class_labels,
+                output_dict=True,
+                zero_division=0,
+            )
         else:
             final_accuracy = None               # Not applicable for regression
             final_mse = final_metric            # Test MSE value
             # For regression, val_perf is NEGATIVE MSE so that max() still picks
             # the best (lowest MSE) candidate.
             val_perf = -val_metric
+            cm = None
+            cls_report = None
+            class_labels = None
 
         # ── Step 11: Save the trained model to disk ──
         model.save(model_path)
@@ -746,6 +789,9 @@ def _fit_candidate(
             training_time=training_time,
             optimizer="Adam",
             learning_rate=0.001,
+            confusion_matrix=cm.tolist() if cm is not None else None,
+            classification_report=cls_report,
+            class_labels=class_labels,
         )
 
     finally:
@@ -825,20 +871,7 @@ def run_random_search(
         if result is not None:
             # Training succeeded – collect the result and notify the frontend.
             results.append(result)
-            push_event(
-                {
-                    "candidate": result.candidate_id,
-                    "final_accuracy": result.final_accuracy,
-                    "final_mse": result.final_mse,
-                    "final_loss": result.final_loss,
-                    "val_metric": result.val_metric,
-                    "total_params": result.total_params,
-                    "optimizer": result.optimizer,
-                    "learning_rate": result.learning_rate,
-                    "training_time": result.training_time,
-                },
-                "result",  # Event type that the frontend listens for.
-            )
+            push_event(_candidate_result_payload(result), "result")
         # Increment ID even if the candidate was skipped (keeps IDs sequential).
         cand_id += 1
 
@@ -933,20 +966,7 @@ def run_evolutionary_search(
             if result is not None:
                 results.append(result)
                 scored.append((result.val_performance, arch))
-                push_event(
-                    {
-                        "candidate": result.candidate_id,
-                        "final_accuracy": result.final_accuracy,
-                        "final_mse": result.final_mse,
-                        "final_loss": result.final_loss,
-                        "val_metric": result.val_metric,
-                        "total_params": result.total_params,
-                        "optimizer": result.optimizer,
-                        "learning_rate": result.learning_rate,
-                        "training_time": result.training_time,
-                    },
-                    "result",
-                )
+                push_event(_candidate_result_payload(result), "result")
             cand_id += 1
 
         # If no candidates trained successfully, stop evolution.
@@ -1045,20 +1065,7 @@ def run_progressive_search(
             break
 
         results.append(result)
-        push_event(
-            {
-                "candidate": result.candidate_id,
-                "final_accuracy": result.final_accuracy,
-                "final_mse": result.final_mse,
-                "final_loss": result.final_loss,
-                "val_metric": result.val_metric,
-                "total_params": result.total_params,
-                "optimizer": result.optimizer,
-                "learning_rate": result.learning_rate,
-                "training_time": result.training_time,
-            },
-            "result",
-        )
+        push_event(_candidate_result_payload(result), "result")
 
         # ── Check if this candidate improved over the previous best ──
         if result.val_performance > best_val:

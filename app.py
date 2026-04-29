@@ -422,6 +422,9 @@ def _serialize_result(r: CandidateResult) -> dict[str, Any]:
         "layer_names": r.layer_names,
         "activations": r.activations,
         "model_path": r.model_path,
+        "confusion_matrix": r.confusion_matrix,
+        "classification_report": r.classification_report,
+        "class_labels": r.class_labels,
     }
 
 
@@ -678,6 +681,9 @@ def _train_worker(filepath: str, nas_type: str, candidates: int, batch_size: int
                     "layer_names": r.layer_names,
                     "activations": r.activations,
                     "file": r.model_path,
+                    "confusion_matrix": r.confusion_matrix,
+                    "classification_report": r.classification_report,
+                    "class_labels": r.class_labels,
                 }
                 for r in results
             }
@@ -703,14 +709,23 @@ def _train_worker(filepath: str, nas_type: str, candidates: int, batch_size: int
                 "message": "NAS completed",
                 "best_candidate": best.candidate_id,
                 "best_model": {
+                    "candidate": best.candidate_id,
                     "total_params": best.total_params,
                     "layer_names": best.layer_names,
                     "activations": best.activations,
                     "final_accuracy": best.final_accuracy,
                     "final_mse": best.final_mse,
                     "final_loss": best.final_loss,
+                    "val_metric": best.val_metric,
+                    "training_time": best.training_time,
+                    "architecture": best.architecture,
+                    "confusion_matrix": best.confusion_matrix,
+                    "classification_report": best.classification_report,
+                    "class_labels": best.class_labels,
                 },
                 "readable_summary": report.get("readable_summary", ""),
+                "all_models": report.get("all_models", []),
+                "task_type": data.task,
             },
             "done",
         )

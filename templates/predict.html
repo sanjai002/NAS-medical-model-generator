@@ -86,6 +86,18 @@
 
       .probabilities-container{ background: rgba(255,255,255,0.02); padding:14px; border-radius:10px }
 
+      .confidence-panel{ background: rgba(255,255,255,0.03); padding:16px; border-radius:10px; margin-bottom:12px; border:1px solid rgba(255,255,255,0.06) }
+      .confidence-grid{ display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:12px; margin-top:10px }
+      .confidence-box{ background: rgba(0,0,0,0.25); border:1px solid rgba(255,255,255,0.06); border-radius:10px; padding:14px }
+      .confidence-label{ font-size:0.82rem; color:rgba(224,224,255,0.72); text-transform:uppercase; letter-spacing:0.04em }
+      .confidence-value{ margin-top:4px; font-size:1.05rem; font-weight:700; color:#ffffff }
+      .confidence-caption{ margin-top:10px; font-size:0.92rem; color:rgba(224,224,255,0.84) }
+
+      .probability-item{ display:grid; grid-template-columns: 120px 1fr 70px; gap:10px; align-items:center; margin-bottom:10px }
+      .probability-label{ font-weight:600 }
+      .probability-bar-container{ height:12px; background: rgba(255,255,255,0.08); border-radius:999px; overflow:hidden }
+      .probability-percent{ text-align:right; font-weight:700; color:#dff7ff }
+
       .probability-bar{ height:100%; background: linear-gradient(90deg,#00f2fe,#4facfe); border-radius:10px }
 
       .error-alert{ background: #4b1f1f; color:#ffd6d6; padding:16px; border-radius:10px; display:none }
@@ -391,6 +403,9 @@
         const resultContent = document.getElementById("resultContent");
 
         if (result.task === "classification") {
+          const probs = Object.entries(result.probabilities || {}).sort((a, b) => b[1] - a[1]);
+          const top = probs[0];
+          const second = probs[1];
           let html = `
             <div class="result-prediction">
               <div class="result-prediction-label">Predicted Class</div>
@@ -398,11 +413,38 @@
             </div>
           `;
 
-          if (result.probabilities && Object.keys(result.probabilities).length > 0) {
-            html += "<div class='probabilities-container'>";
-            html += "<h6 class='mb-3'>Class Probabilities</h6>";
+          if (probs.length > 0) {
+            const topPct = (top[1] * 100).toFixed(1);
+            const secondPct = second ? (second[1] * 100).toFixed(1) : null;
+            html += `
+              <div class="confidence-panel">
+                <div class="result-title mb-2">
+                  <i class="bi bi-shield-check" style="color:#00f2fe"></i>
+                  Prediction Confidence Panel
+                </div>
+                <div class="confidence-grid">
+                  <div class="confidence-box">
+                    <div class="confidence-label">Top Prediction</div>
+                    <div class="confidence-value">${top[0]}</div>
+                  </div>
+                  <div class="confidence-box">
+                    <div class="confidence-label">Confidence</div>
+                    <div class="confidence-value">${topPct}%</div>
+                  </div>
+                  <div class="confidence-box">
+                    <div class="confidence-label">Runner-up</div>
+                    <div class="confidence-value">${second ? `${second[0]} (${secondPct}%)` : 'No second class'}</div>
+                  </div>
+                </div>
+                <div class="confidence-caption">
+                  The model is most confident about <strong>${top[0]}</strong>. Larger probability gaps between the top class and the runner-up usually mean a more decisive prediction.
+                </div>
+              </div>
+            `;
 
-            const probs = Object.entries(result.probabilities);
+            html += "<div class='probabilities-container'>";
+            html += "<h6 class='mb-3'>Ranked Class Probabilities</h6>";
+
             probs.forEach(([className, prob]) => {
               const percentage = (prob * 100).toFixed(1);
               html += `

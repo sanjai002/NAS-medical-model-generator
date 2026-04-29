@@ -106,6 +106,85 @@ button:disabled {
   margin-top:10px;
 }
 
+.metric-help-row {
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  margin-top:12px;
+}
+
+.metric-help-chip {
+  padding:7px 12px;
+  border-radius:999px;
+  font-size:13px;
+  font-weight:700;
+  border:1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.06);
+}
+
+.metric-help-good {
+  color:#7CFFB2;
+}
+
+.metric-help-watch {
+  color:#FFD166;
+}
+
+.trend-card {
+  margin-top:14px;
+  border-radius:14px;
+  border:1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.05);
+  padding:14px 16px;
+  line-height:1.6;
+}
+
+.trend-title {
+  font-size:14px;
+  font-weight:800;
+  margin-bottom:6px;
+  color:#cfe9ff;
+}
+
+.click-note {
+  margin-top: 10px;
+  font-size: 13px;
+  color: rgba(224,224,255,0.78);
+}
+
+.trend-line {
+  font-size:14px;
+  color:rgba(224,224,255,0.92);
+}
+
+.trend-line strong {
+  color:white;
+}
+
+.trend-up {
+  color:#7CFFB2;
+  font-weight:800;
+}
+
+.trend-down {
+  color:#ff8c7a;
+  font-weight:800;
+}
+
+.trend-neutral {
+  color:#FFD166;
+  font-weight:800;
+}
+
+.reason-list {
+  margin: 8px 0 0 18px;
+  color: rgba(224,224,255,0.88);
+}
+
+.reason-list li {
+  margin-bottom: 5px;
+}
+
 canvas {
   background: rgba(0,0,0,0.4);
   border-radius:15px;
@@ -119,6 +198,15 @@ canvas {
   background: rgba(46, 204, 113, 0.10);
   line-height: 1.6;
   min-height: 92px;
+}
+
+.explanation-points {
+  margin-top: 10px;
+  padding-left: 18px;
+}
+
+.explanation-points li {
+  margin-bottom: 6px;
 }
 
 .placeholder {
@@ -147,6 +235,71 @@ canvas {
 .table-wrap {
   width: 100%;
   overflow-x: auto;
+}
+
+.mini-table {
+  width:100%;
+  min-width: 680px;
+  border-collapse: collapse;
+}
+
+.mini-table th,
+.mini-table td {
+  border:1px solid rgba(255,255,255,0.14);
+  padding:9px 10px;
+  text-align:left;
+}
+
+.section-note {
+  margin-top: 8px;
+  font-size: 13px;
+  color: rgba(224,224,255,0.78);
+}
+
+.matrix-grid {
+  display:grid;
+  gap:6px;
+  margin-top:12px;
+}
+
+.matrix-row {
+  display:grid;
+  gap:6px;
+}
+
+.matrix-cell {
+  min-height:48px;
+  border-radius:10px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex-direction:column;
+  font-weight:700;
+  border:1px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.05);
+}
+
+.matrix-label-cell {
+  background: rgba(255,255,255,0.04);
+  color:#dbe7ff;
+}
+
+.matrix-axis-note {
+  font-size:12px;
+  color:rgba(224,224,255,0.72);
+  margin-top:10px;
+}
+
+.stack-grid {
+  display:grid;
+  grid-template-columns: 1fr;
+  gap: 20px;
+}
+
+@media (min-width: 1100px) {
+  .stack-grid {
+    grid-template-columns: 1fr 1fr;
+  }
 }
 
 table {
@@ -224,18 +377,63 @@ tr.best-row {
 <h3>Training Metrics</h3>
 <div class="metric-box">
   Loss: <span id="loss">-</span> |
-  Metric: <span id="metric">-</span>
+  <span id="metricLabel">Accuracy</span>: <span id="metric">-</span>
+</div>
+<div class="metric-help-row">
+  <div class="metric-help-chip metric-help-good">Good sign: loss should go down</div>
+  <div id="metricGoalChip" class="metric-help-chip metric-help-good">Good sign: accuracy should go up</div>
+  <div class="metric-help-chip metric-help-watch">Each yellow divider marks a new model</div>
 </div>
 <canvas id="chart" height="100"></canvas>
+<div id="trendCard" class="trend-card">
+  <div class="trend-title">How to read this graph</div>
+  <div id="trendSummary" class="trend-line">Training has not started yet. When points appear, this panel will explain whether the latest changes in loss and accuracy are improving.</div>
+  <div id="trendDetails" class="trend-line" style="margin-top:6px;">Healthy training usually means <strong>loss decreases</strong> and <strong>accuracy increases</strong>.</div>
+  <div class="click-note">Tip: click any point in the graph to see why that loss or accuracy change may have happened.</div>
+</div>
 </div>
 
 <div class="glass">
-<h3>Best Model Summary</h3>
+<h3>Best Model Explanation</h3>
 <div id="summaryCard" class="summary-card">
-  <div id="summaryPlaceholder" class="placeholder">Summary will appear when training completes.</div>
+  <div id="summaryPlaceholder" class="placeholder">Live explanation will appear as soon as the first candidate finishes.</div>
   <div id="summaryText" style="display:none;"></div>
   <div id="summaryBadges" class="badges-row" style="display:none;"></div>
 </div>
+</div>
+
+<div class="glass">
+<h3>Candidate Leaderboard</h3>
+<div id="leaderboardPlaceholder" class="placeholder">Leaderboard will update as each candidate finishes.</div>
+<div class="table-wrap">
+  <table id="leaderboardTable" class="mini-table" style="display:none; min-width:760px;">
+    <thead>
+      <tr>
+        <th>Rank</th>
+        <th>Model</th>
+        <th>Validation Score</th>
+        <th>Final Score</th>
+        <th>Loss</th>
+        <th>Params</th>
+        <th>Time</th>
+      </tr>
+    </thead>
+    <tbody id="leaderboardBody"></tbody>
+  </table>
+</div>
+</div>
+
+<div class="glass">
+<h3>Live Evaluation Details</h3>
+<div>
+  <div id="confusionPlaceholder" class="placeholder">Confusion matrix will appear for the current best classification model.</div>
+  <div id="confusionWrapper" style="display:none;">
+    <h4 style="margin-bottom:6px;">Confusion Matrix</h4>
+    <div id="confusionMatrix"></div>
+    <div class="matrix-axis-note">Rows = actual class, columns = predicted class. Strong diagonal values indicate better classification.</div>
+  </div>
+</div>
+<div id="evaluationNote" class="section-note">This panel updates to show the best classification model seen so far. For regression runs, the confusion matrix stays hidden while the leaderboard and best-model explanation remain available.</div>
 </div>
 
 <div class="glass">
@@ -276,6 +474,133 @@ let currentTaskType = null;
 let currentCandidate = null;
 let pointCandidates = [];
 let modelBoundaries = [];
+let candidateResults = [];
+let liveBestModel = null;
+let latestStepData = null;
+
+function getMetricDisplayName(taskType){
+  return taskType === 'regression' ? 'MSE' : 'Accuracy';
+}
+
+function getMetricGoalText(taskType){
+  return taskType === 'regression'
+    ? 'Good sign: MSE should go down'
+    : 'Good sign: accuracy should go up';
+}
+
+function describeDelta(delta, preferDown){
+  if(delta == null || Number.isNaN(delta)){
+    return { text: 'No change yet', className: 'trend-neutral' };
+  }
+  if(Math.abs(delta) < 1e-8){
+    return { text: 'No visible change', className: 'trend-neutral' };
+  }
+
+  const improved = preferDown ? delta < 0 : delta > 0;
+  const direction = delta > 0 ? 'increased' : 'decreased';
+  return {
+    text: `${direction} by ${Math.abs(delta).toFixed(4)}${improved ? ' (good)' : ' (needs attention)'}`,
+    className: improved ? 'trend-up' : 'trend-down'
+  };
+}
+
+function updateMetricGuidance(taskType){
+  document.getElementById('metricLabel').innerText = getMetricDisplayName(taskType);
+  document.getElementById('metricGoalChip').innerText = getMetricGoalText(taskType);
+}
+
+function getLikelyReasons({ datasetLabel, delta, taskType, isFirstPoint, switchedModel }){
+  const reasons = [];
+
+  if(isFirstPoint){
+    reasons.push('This is the first recorded point for this model, so there is no previous point to compare against yet.');
+    reasons.push('Early points often move sharply because the model weights are still random and adapting quickly to the first batches.');
+    return reasons;
+  }
+
+  if(switchedModel){
+    reasons.push('This point belongs to a new candidate model, so a sudden jump is expected because the architecture and weights changed.');
+  }
+
+  if(datasetLabel === 'Loss'){
+    if(delta > 0){
+      reasons.push('Loss increased because this batch was likely harder for the model than the previous one, so prediction error temporarily rose.');
+      reasons.push('Short-term loss spikes are common during training when weights are still adjusting or when the learning step overshoots slightly.');
+    } else {
+      reasons.push('Loss decreased because the model fit this batch better than the previous one, meaning prediction error reduced.');
+      reasons.push('This usually suggests the current weights are moving in a useful direction for the recent training batches.');
+    }
+  } else if(taskType === 'regression'){
+    if(delta > 0){
+      reasons.push('MSE increased, which means the squared prediction error on this batch became larger than before.');
+      reasons.push('This can happen when the batch contains more difficult examples or when the model is still stabilizing.');
+    } else {
+      reasons.push('MSE decreased, which means the prediction error on this batch became smaller than before.');
+      reasons.push('That usually indicates the model is learning patterns that generalize better to the recent data.');
+    }
+  } else {
+    if(delta > 0){
+      reasons.push('Accuracy increased because the model predicted more examples correctly on this batch than on the previous one.');
+      reasons.push('This often happens when the model begins recognizing class patterns more reliably after recent weight updates.');
+    } else {
+      reasons.push('Accuracy decreased because this batch was likely more difficult or the latest weight update did not help this specific batch.');
+      reasons.push('Small drops are normal in batch-wise training and do not necessarily mean the overall model is getting worse.');
+    }
+  }
+
+  return reasons;
+}
+
+function explainClickedPoint(datasetIndex, pointIndex){
+  const taskType = currentTaskType || 'classification';
+  const dataset = chart.data.datasets[datasetIndex];
+  const currentValue = Number(dataset.data[pointIndex]);
+  const prevValue = pointIndex > 0 ? Number(dataset.data[pointIndex - 1]) : null;
+  const delta = prevValue == null ? null : currentValue - prevValue;
+  const directionInfo = dataset.label === 'Loss'
+    ? describeDelta(delta, true)
+    : describeDelta(delta, taskType === 'regression');
+  const modelLabel = pointCandidates[pointIndex] ?? '-';
+  const stepLabel = chart.data.labels[pointIndex];
+  const switchedModel = pointIndex > 0 && pointCandidates[pointIndex] !== pointCandidates[pointIndex - 1];
+  const reasons = getLikelyReasons({
+    datasetLabel: dataset.label,
+    delta,
+    taskType,
+    isFirstPoint: prevValue == null,
+    switchedModel,
+  });
+
+  document.getElementById('trendSummary').innerHTML = `You clicked <strong>${dataset.label}</strong> at <strong>Model ${modelLabel}</strong>, <strong>Step ${stepLabel}</strong>. It <span class="${directionInfo.className}">${directionInfo.text}</span>.`;
+  document.getElementById('trendDetails').innerHTML = `
+    <div><strong>Likely reason behind this change:</strong></div>
+    <ul class="reason-list">
+      ${reasons.map(reason => `<li>${reason}</li>`).join('')}
+    </ul>
+  `;
+}
+
+function updateTrendCard(dataPoint){
+  const taskType = currentTaskType || 'classification';
+  const metricName = getMetricDisplayName(taskType);
+  const lossSeries = chart.data.datasets[0].data;
+  const metricSeries = chart.data.datasets[1].data;
+  const pointIndex = lossSeries.length - 1;
+  const prevLoss = pointIndex > 0 ? Number(lossSeries[pointIndex - 1]) : null;
+  const prevMetric = pointIndex > 0 ? Number(metricSeries[pointIndex - 1]) : null;
+  const lossDelta = prevLoss == null ? null : Number(dataPoint.loss) - prevLoss;
+  const metricDelta = prevMetric == null ? null : Number(dataPoint.batch_metric) - prevMetric;
+  const lossInfo = describeDelta(lossDelta, true);
+  const metricInfo = describeDelta(metricDelta, taskType === 'regression');
+  const summary = document.getElementById('trendSummary');
+  const details = document.getElementById('trendDetails');
+  const modelLabel = dataPoint.candidate ?? currentCandidate ?? '-';
+
+  summary.innerHTML = `Model <strong>${modelLabel}</strong>: Loss is <span class="${lossInfo.className}">${lossInfo.text}</span>; ${metricName} is <span class="${metricInfo.className}">${metricInfo.text}</span>.`;
+  details.innerHTML = taskType === 'regression'
+    ? `For regression, a healthy pattern is <strong>loss going down</strong> and <strong>MSE going down</strong>. Lower values mean prediction error is reducing.`
+    : `For classification, a healthy pattern is <strong>loss going down</strong> and <strong>accuracy going up</strong>. Lower loss means the model is learning more confidently.`;
+}
 
 // Custom Chart.js plugin: draws a vertical dashed line + "Model N" label
 // at the start index of each candidate model.
@@ -321,24 +646,67 @@ const chart = new Chart(ctx,{
   data:{
     labels:[],
     datasets:[
-      {label:'Loss',data:[],borderColor:'#ff4b2b',fill:false},
-      {label:'Metric',data:[],borderColor:'#00f2fe',fill:false}
+      {label:'Loss',data:[],borderColor:'#ff4b2b',backgroundColor:'rgba(255,75,43,0.18)',fill:false,tension:0.25,pointRadius:2,pointHoverRadius:5,borderWidth:3},
+      {label:'Accuracy',data:[],borderColor:'#00f2fe',backgroundColor:'rgba(0,242,254,0.18)',fill:false,tension:0.25,pointRadius:2,pointHoverRadius:5,borderWidth:3}
     ]
   },
   options:{
     responsive:true,
     animation: false,
-    scales:{ x:{display:false} },
+    interaction:{ mode:'index', intersect:false },
+    onClick(event, elements, chartInstance){
+      const exactPoints = chartInstance.getElementsAtEventForMode(
+        event,
+        'nearest',
+        { intersect: true },
+        true,
+      );
+
+      const selectedPoint = exactPoints?.[0] || elements?.[0];
+      if(!selectedPoint){
+        return;
+      }
+      explainClickedPoint(selectedPoint.datasetIndex, selectedPoint.index);
+    },
+    scales:{
+      x:{
+        display:true,
+        title:{ display:true, text:'Training Progress (batch steps across models)', color:'#dbe7ff' },
+        ticks:{
+          color:'rgba(224,224,255,0.7)',
+          maxTicksLimit:8,
+          callback(value, index){
+            return index % Math.max(1, Math.ceil(chart.data.labels.length / 8)) === 0 ? `Step ${chart.data.labels[index]}` : '';
+          }
+        },
+        grid:{ color:'rgba(255,255,255,0.08)' }
+      },
+      y:{
+        display:true,
+        title:{ display:true, text:'Metric value', color:'#dbe7ff' },
+        ticks:{ color:'rgba(224,224,255,0.7)' },
+        grid:{ color:'rgba(255,255,255,0.08)' }
+      }
+    },
     plugins:{
+      legend:{
+        display:true,
+        labels:{ color:'#eef4ff' }
+      },
       tooltip:{
         callbacks:{
           title(items){
             const idx = items[0]?.dataIndex;
             const cand = pointCandidates[idx];
-            return cand != null ? `Model ${cand}` : '';
+            const step = chart.data.labels[idx];
+            return cand != null ? `Model ${cand} • Step ${step}` : `Step ${step}`;
           },
           label(item){
-            return `${item.dataset.label}: ${item.parsed.y.toFixed(4)}`;
+            const idx = item.dataIndex;
+            const prev = idx > 0 ? item.dataset.data[idx - 1] : null;
+            const delta = prev == null ? null : Number(item.parsed.y) - Number(prev);
+            const deltaText = delta == null ? 'first point' : `${delta >= 0 ? '+' : ''}${delta.toFixed(4)} vs prev`;
+            return `${item.dataset.label}: ${item.parsed.y.toFixed(4)} (${deltaText})`;
           }
         }
       }
@@ -363,8 +731,15 @@ function setLoadingState(isLoading){
   const summaryBadges = document.getElementById('summaryBadges');
   const comparisonPlaceholder = document.getElementById('comparisonPlaceholder');
   const comparisonTable = document.getElementById('comparisonTable');
+  const leaderboardTable = document.getElementById('leaderboardTable');
+  const leaderboardPlaceholder = document.getElementById('leaderboardPlaceholder');
+  const confusionWrapper = document.getElementById('confusionWrapper');
+  const confusionPlaceholder = document.getElementById('confusionPlaceholder');
 
   if(isLoading){
+    candidateResults = [];
+    liveBestModel = null;
+    updateMetricGuidance(currentTaskType || 'classification');
     summaryPlaceholder.style.display = '';
     summaryPlaceholder.innerText = 'Training in progress... building readable summary.';
     summaryText.style.display = 'none';
@@ -375,6 +750,19 @@ function setLoadingState(isLoading){
     comparisonPlaceholder.innerText = 'Training in progress... model comparison table will appear soon.';
     comparisonTable.style.display = 'none';
     document.getElementById('comparisonBody').innerHTML = '';
+
+    leaderboardPlaceholder.style.display = '';
+    leaderboardPlaceholder.innerText = 'Leaderboard will update as each candidate finishes.';
+    leaderboardTable.style.display = 'none';
+    document.getElementById('leaderboardBody').innerHTML = '';
+
+    confusionPlaceholder.style.display = '';
+    confusionPlaceholder.innerText = 'Confusion matrix will appear for the current best classification model.';
+    confusionWrapper.style.display = 'none';
+    document.getElementById('confusionMatrix').innerHTML = '';
+
+    document.getElementById('trendSummary').innerText = 'Training started. Watch whether loss goes down and the main metric moves in the healthy direction.';
+    document.getElementById('trendDetails').innerHTML = 'Each yellow divider marks a new model. Compare whether later models learn faster, end with lower loss, or reach better accuracy.';
   }
 }
 
@@ -385,14 +773,59 @@ function createBadge(label, className){
   return span;
 }
 
-function renderSummary(summary, models, bestModel){
+function getSortedModels(models, taskType){
+  const copy = [...models];
+  return copy.sort((a,b)=>{
+    if(taskType === 'regression'){
+      return Number(a.val_metric ?? Number.MAX_SAFE_INTEGER) - Number(b.val_metric ?? Number.MAX_SAFE_INTEGER);
+    }
+    return Number(b.val_metric ?? Number.MIN_SAFE_INTEGER) - Number(a.val_metric ?? Number.MIN_SAFE_INTEGER);
+  });
+}
+
+function chooseBestModel(models, taskType){
+  return getSortedModels(models, taskType)[0] || null;
+}
+
+function formatArchitecture(model){
+  const units = model?.architecture?.dense_units || model?.arch?.dense_units || [];
+  const activation = model?.architecture?.activation || model?.arch?.activation || '-';
+  return units.length ? `${units.join(' → ')} (${activation})` : 'Not available';
+}
+
+function buildExplanation(summary, models, bestModel, taskType){
+  if(summary){
+    return summary.replace(/\n/g, '<br>');
+  }
+  if(!bestModel){
+    return 'No best-model explanation available yet.';
+  }
+
+  const metricName = taskType === 'regression' ? 'validation MSE' : 'validation accuracy';
+  const scoreText = taskType === 'regression'
+    ? Number(bestModel.val_metric ?? 0).toFixed(4)
+    : `${(Number(bestModel.val_metric ?? 0) * 100).toFixed(2)}%`;
+
+  return `
+    <div><strong>Model ${bestModel.candidate}</strong> is currently the best candidate.</div>
+    <ul class="explanation-points">
+      <li>Architecture: <strong>${formatArchitecture(bestModel)}</strong></li>
+      <li>Selected because it has the strongest ${metricName}: <strong>${scoreText}</strong></li>
+      <li>Final loss: <strong>${Number(bestModel.final_loss ?? 0).toFixed(4)}</strong></li>
+      <li>Parameter count: <strong>${Number(bestModel.total_params ?? 0).toLocaleString()}</strong></li>
+      <li>Training time: <strong>${Number(bestModel.training_time ?? 0).toFixed(1)} sec</strong></li>
+    </ul>
+  `;
+}
+
+function renderSummary(summary, models, bestModel, taskType = currentTaskType || 'classification'){
   const summaryPlaceholder = document.getElementById('summaryPlaceholder');
   const summaryText = document.getElementById('summaryText');
   const summaryBadges = document.getElementById('summaryBadges');
 
   summaryPlaceholder.style.display = 'none';
   summaryText.style.display = '';
-  summaryText.innerText = summary || 'No summary available.';
+  summaryText.innerHTML = buildExplanation(summary, models, bestModel, taskType);
 
   if(!Array.isArray(models) || models.length === 0){
     summaryBadges.style.display = 'none';
@@ -415,6 +848,105 @@ function renderSummary(summary, models, bestModel){
   }
 
   summaryBadges.style.display = '';
+}
+
+function renderLeaderboard(models, taskType){
+  const placeholder = document.getElementById('leaderboardPlaceholder');
+  const table = document.getElementById('leaderboardTable');
+  const body = document.getElementById('leaderboardBody');
+  body.innerHTML = '';
+
+  if(!models.length){
+    placeholder.style.display = '';
+    table.style.display = 'none';
+    return;
+  }
+
+  const sorted = getSortedModels(models, taskType);
+  sorted.forEach((model, index)=>{
+    const row = document.createElement('tr');
+    if(index === 0){
+      row.classList.add('best-row');
+    }
+    const finalScore = taskType === 'regression'
+      ? `${Number(model.final_mse ?? model.final_metric ?? 0).toFixed(4)} MSE`
+      : `${(Number(model.final_accuracy ?? model.final_metric ?? 0) * 100).toFixed(2)}%`;
+    const valScore = taskType === 'regression'
+      ? `${Number(model.val_metric ?? 0).toFixed(4)} MSE`
+      : `${(Number(model.val_metric ?? 0) * 100).toFixed(2)}%`;
+    row.innerHTML = `
+      <td>${index + 1}</td>
+      <td>Model ${model.candidate}</td>
+      <td>${valScore}</td>
+      <td>${finalScore}</td>
+      <td>${Number(model.final_loss ?? 0).toFixed(4)}</td>
+      <td>${Number(model.total_params ?? 0).toLocaleString()}</td>
+      <td>${Number(model.training_time ?? 0).toFixed(1)} sec</td>
+    `;
+    body.appendChild(row);
+  });
+
+  placeholder.style.display = 'none';
+  table.style.display = '';
+}
+
+function renderConfusionMatrix(bestModel, taskType){
+  const placeholder = document.getElementById('confusionPlaceholder');
+  const wrapper = document.getElementById('confusionWrapper');
+  const container = document.getElementById('confusionMatrix');
+  container.innerHTML = '';
+
+  if(taskType !== 'classification' || !bestModel?.confusion_matrix || !bestModel?.class_labels?.length){
+    placeholder.style.display = '';
+    placeholder.innerText = taskType === 'regression'
+      ? 'Confusion matrix is classification-only, so it is hidden for regression runs.'
+      : 'Confusion matrix will appear for the current best classification model.';
+    wrapper.style.display = 'none';
+    return;
+  }
+
+  const matrix = bestModel.confusion_matrix;
+  const labels = bestModel.class_labels;
+  const maxValue = Math.max(...matrix.flat(), 1);
+  const grid = document.createElement('div');
+  grid.className = 'matrix-grid';
+
+  const header = document.createElement('div');
+  header.className = 'matrix-row';
+  header.style.gridTemplateColumns = `120px repeat(${labels.length}, minmax(70px, 1fr))`;
+  header.innerHTML = `<div class="matrix-cell matrix-label-cell">Actual \ Pred</div>` + labels.map(label => `<div class="matrix-cell matrix-label-cell">${label}</div>`).join('');
+  grid.appendChild(header);
+
+  matrix.forEach((rowValues, rowIndex)=>{
+    const row = document.createElement('div');
+    row.className = 'matrix-row';
+    row.style.gridTemplateColumns = `120px repeat(${labels.length}, minmax(70px, 1fr))`;
+    row.innerHTML = `<div class="matrix-cell matrix-label-cell">${labels[rowIndex]}</div>`;
+    rowValues.forEach(value=>{
+      const intensity = Number(value) / maxValue;
+      row.innerHTML += `<div class="matrix-cell" style="background: rgba(0, 242, 254, ${0.14 + intensity * 0.55});">${value}</div>`;
+    });
+    grid.appendChild(row);
+  });
+
+  container.appendChild(grid);
+  placeholder.style.display = 'none';
+  wrapper.style.display = '';
+}
+
+function renderLiveEvaluation(models, bestModel, taskType){
+  renderSummary('', models, bestModel, taskType);
+  renderLeaderboard(models, taskType);
+  renderConfusionMatrix(bestModel, taskType);
+}
+
+function upsertCandidateResult(result){
+  const idx = candidateResults.findIndex(item => Number(item.candidate) === Number(result.candidate));
+  if(idx >= 0){
+    candidateResults[idx] = { ...candidateResults[idx], ...result };
+  } else {
+    candidateResults.push(result);
+  }
 }
 
 function renderComparisonTable(payload){
@@ -475,7 +1007,13 @@ async function fetchComparisonAndSummary(){
 
   const payload = await res.json();
   currentTaskType = payload?.task_type || currentTaskType;
-  renderSummary(payload?.readable_summary, payload?.all_models || [], payload?.best_model || {});
+  updateMetricGuidance(currentTaskType || 'classification');
+  chart.data.datasets[1].label = getMetricDisplayName(currentTaskType || 'classification');
+  candidateResults = payload?.all_models || [];
+  liveBestModel = payload?.best_model || chooseBestModel(candidateResults, currentTaskType || 'classification');
+  renderSummary(payload?.readable_summary, candidateResults, liveBestModel, currentTaskType || 'classification');
+  renderLeaderboard(candidateResults, currentTaskType || 'classification');
+  renderConfusionMatrix(liveBestModel, currentTaskType || 'classification');
   renderComparisonTable(payload);
 }
 
@@ -487,9 +1025,12 @@ document.getElementById('uploadForm').addEventListener('submit', async (e)=>{
   chart.data.labels=[];
   chart.data.datasets[0].data=[];
   chart.data.datasets[1].data=[];
+  chart.data.datasets[1].label='Accuracy';
   pointCandidates=[];
   modelBoundaries=[];
   currentCandidate=null;
+  candidateResults=[];
+  liveBestModel=null;
   chart.update();
 
   const fd = new FormData(e.target);
@@ -508,6 +1049,8 @@ document.getElementById('uploadForm').addEventListener('submit', async (e)=>{
 
   es.addEventListener('step', (ev)=>{
     const d = JSON.parse(ev.data);
+    latestStepData = d;
+    updateMetricGuidance(currentTaskType || 'classification');
     document.getElementById('loss').innerText = Number(d.loss).toFixed(4);
     document.getElementById('metric').innerText = Number(d.batch_metric).toFixed(4);
 
@@ -515,12 +1058,40 @@ document.getElementById('uploadForm').addEventListener('submit', async (e)=>{
     chart.data.labels.push(chart.data.labels.length);
     chart.data.datasets[0].data.push(d.loss);
     chart.data.datasets[1].data.push(d.batch_metric);
+    updateTrendCard(d);
     chart.update();
+  });
+
+  es.addEventListener('result', (ev)=>{
+    const d = JSON.parse(ev.data);
+    if(d.final_mse != null){
+      currentTaskType = 'regression';
+    } else if(d.final_accuracy != null){
+      currentTaskType = 'classification';
+    }
+    updateMetricGuidance(currentTaskType || 'classification');
+    chart.data.datasets[1].label = getMetricDisplayName(currentTaskType || 'classification');
+    upsertCandidateResult(d);
+    const taskType = currentTaskType || 'classification';
+    liveBestModel = chooseBestModel(candidateResults, taskType);
+    renderLiveEvaluation(candidateResults, liveBestModel, taskType);
   });
 
   es.addEventListener('done', async (ev)=>{
     const d = JSON.parse(ev.data);
     currentTaskType = d.task_type || currentTaskType;
+    updateMetricGuidance(currentTaskType || 'classification');
+    chart.data.datasets[1].label = getMetricDisplayName(currentTaskType || 'classification');
+
+    if(Array.isArray(d.all_models) && d.all_models.length){
+      candidateResults = d.all_models;
+    }
+    if(d.best_model){
+      liveBestModel = d.best_model;
+    }
+    if(candidateResults.length && liveBestModel){
+      renderLiveEvaluation(candidateResults, liveBestModel, currentTaskType || 'classification');
+    }
 
     await fetchComparisonAndSummary();
 
